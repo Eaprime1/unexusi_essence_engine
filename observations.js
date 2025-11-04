@@ -1,0 +1,180 @@
+// Observation Vector Builder for Slime-Bundle Learning
+// Constructs normalized obs vector from bundle state
+
+import { CONFIG } from './config.js';
+
+/**
+ * Build observation vector for a bundle
+ * Returns both raw object and flat normalized vector
+ * 
+ * Observation components (15 dims total):
+ * - χ state: [chi_norm, frustration, alive]  (3)
+ * - Motion: [vx_norm, vy_norm]               (2)
+ * - Walls: [nx, ny, edge_mag]                (3)
+ * - Resource: [res_dx, res_dy, res_visible]  (3)
+ * - Trails: [trail_mean, trail_max, tdir_x, tdir_y] (4)
+ */
+export function buildObservation(bundle, resource, Trail, globalTick) {
+  const obs = {};
+  
+  // === χ State ===
+  obs.chi = bundle.chi / 20;  // normalize to roughly [0, 1]
+  obs.frustration = bundle.frustration || 0; // already [0, 1]
+  obs.alive = bundle.alive ? 1 : 0;
+  
+  // === Motion ===
+  // Get velocity from bundle (we'll need to track this)
+  obs.vx = (bundle.vx || 0) / CONFIG.moveSpeedPxPerSec;
+  obs.vy = (bundle.vy || 0) / CONFIG.moveSpeedPxPerSec;
+  
+  // === Walls (distance to edges) ===
+  const edgeDist = getEdgeInfo(bundle);
+  obs.wallNx = edgeDist.nx;
+  obs.wallNy = edgeDist.ny;
+  obs.wallMag = edgeDist.mag;
+  
+  // === Resource (within sensory range only) ===
+  const resourceInfo = getResourceInfo(bundle, resource);
+  obs.resDx = resourceInfo.dx;
+  obs.resDy = resourceInfo.dy;
+  obs.resVisible = resourceInfo.visible;
+  
+  // === Trail Sampling ===
+  const trailInfo = sampleTrails(bundle, Trail);
+  obs.trailMean = trailInfo.mean;
+  obs.trailMax = trailInfo.max;
+  obs.trailDirX = trailInfo.dirX;
+  obs.trailDirY = trailInfo.dirY;
+  
+  // === Build flat vector ===
+  obs.vector = [
+    obs.chi,
+    obs.frustration,
+    obs.alive,
+    obs.vx,
+    obs.vy,
+    obs.wallNx,
+    obs.wallNy,
+    obs.wallMag,
+    obs.resDx,
+    obs.resDy,
+    obs.resVisible,
+    obs.trailMean,
+    obs.trailMax,
+    obs.trailDirX,
+    obs.trailDirY
+  ];
+  
+  // Store resource reference for heuristic controller
+  obs.resource = resource;
+  
+  return obs;
+}
+
+/**
+ * Calculate wall/edge proximity
+ * Returns normal vector pointing away from nearest edge
+ */
+function getEdgeInfo(bundle) {
+  const margin = 50; // activation distance from edge
+  const x = bundle.x;
+  const y = bundle.y;
+  const w = typeof innerWidth !== 'undefined' ? innerWidth : 800;
+  const h = typeof innerHeight !== 'undefined' ? innerHeight : 600;
+  
+  // Distance to each edge
+  const dLeft = x;
+  const dRight = w - x;
+  const dTop = y;
+  const dBottom = h - y;
+  
+  // Find nearest edge
+  const dMin = Math.min(dLeft, dRight, dTop, dBottom);
+  
+  // If far from edges, return zero
+  if (dMin > margin) {
+    return { nx: 0, ny: 0, mag: 0 };
+  }
+  
+  // Compute normal pointing inward
+  let nx = 0, ny = 0;
+  if (dMin === dLeft) nx = 1;
+  else if (dMin === dRight) nx = -1;
+  else if (dMin === dTop) ny = 1;
+  else if (dMin === dBottom) ny = -1;
+  
+  // Magnitude: stronger when closer
+  const mag = 1 - (dMin / margin);
+  
+  return { nx, ny, mag };
+}
+
+/**
+ * Get resource direction info (only if visible within sensory range)
+ */
+function getResourceInfo(bundle, resource) {
+  if (!resource) {
+    return { dx: 0, dy: 0, visible: 0 };
+  }
+  
+  const dx = resource.x - bundle.x;
+  const dy = resource.y - bundle.y;
+  const dist = Math.hypot(dx, dy);
+  
+  // Check if visible within current sensory range
+  const range = bundle.currentSensoryRange || CONFIG.aiSensoryRangeBase;
+  const visible = (dist <= range) ? 1 : 0;
+  
+  if (visible && dist > 0) {
+    // Return unit vector toward resource
+    return {
+      dx: dx / dist,
+      dy: dy / dist,
+      visible: 1
+    };
+  }
+  
+  return { dx: 0, dy: 0, visible: 0 };
+}
+
+/**
+ * Sample trails in multiple directions
+ * Returns mean, max, and direction of strongest trail
+ */
+function sampleTrails(bundle, Trail) {
+  const sampleDist = CONFIG.aiSampleDistance;
+  const numSamples = 16;
+  
+  let sum = 0;
+  let max = 0;
+  let maxAngle = 0;
+  
+  for (let i = 0; i < numSamples; i++) {
+    const angle = (i / numSamples) * Math.PI * 2;
+    const sx = bundle.x + Math.cos(angle) * sampleDist;
+    const sy = bundle.y + Math.sin(angle) * sampleDist;
+    
+    const { value, authorId, age } = Trail.sample(sx, sy);
+    
+    // Only consider trails from others that are old enough
+    const valid = (authorId !== bundle.id && authorId !== 0 && 
+                   age >= CONFIG.trailCooldownTicks);
+    
+    const v = valid ? value : 0;
+    sum += v;
+    
+    if (v > max) {
+      max = v;
+      maxAngle = angle;
+    }
+  }
+  
+  const mean = sum / numSamples;
+  
+  // Direction of strongest trail as unit vector
+  const dirX = max > 0 ? Math.cos(maxAngle) : 0;
+  const dirY = max > 0 ? Math.sin(maxAngle) : 0;
+  
+  return { mean, max, dirX, dirY };
+}
+
