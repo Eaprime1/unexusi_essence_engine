@@ -21,6 +21,40 @@ export const CONFIG = {
   resourceRecoveryChance: 0.10,     // Chance per second to add a resource (if below stable max)
   // Legacy fixed count (used when resourceDynamicCount = false)
   resourceCount: 3,                 // Fixed number of resources (legacy mode)
+  
+  // === Plant Ecology System (soil fertility & clustering) ===
+  plantEcology: {
+    enabled: true,                  // Use plant-based resource system
+    
+    // Fertility Grid (like trail grid, but for soil quality)
+    fertilityCell: 40,              // Size of fertility cells (pixels)
+    
+    // Initial conditions
+    initialFertility: 0.8,          // Starting soil quality (0-1)
+    fertilityVariation: 0.3,        // Random variation in initial fertility
+    
+    // Growth mechanics
+    seedChance: 0.02,               // Chance per second for resource to spawn seed
+    seedDistance: 120,              // Max distance for seed dispersal (pixels)
+    growthFertilityThreshold: 0.3,  // Min fertility needed for growth
+    growthChance: 0.15,             // Chance per second to grow in fertile soil
+    
+    // Resource clustering
+    patchCount: 3,                  // Number of initial fertile patches
+    patchRadius: 150,               // Radius of fertile patches (pixels)
+    patchFertility: 0.9,            // Fertility in patch centers
+    
+    // Depletion & recovery
+    harvestDepletion: 0.15,         // Fertility lost per harvest (local)
+    harvestRadius: 60,              // Radius of depletion effect (pixels)
+    fertilityRecovery: 0.05,        // Fertility gain per second (when not harvested)
+    maxFertility: 1.0,              // Max fertility cap
+    
+    // Population pressure
+    populationPressure: true,       // Enable population-based degradation
+    pressurePerAgent: 0.01,         // Global fertility drain per agent per second
+    pressureThreshold: 6,           // Agents above this cause pressure
+  },
 
   // === Adaptive Reward System ===
   // Biologically-grounded rewards that scale with search difficulty
@@ -62,10 +96,10 @@ export const CONFIG = {
   autoMove: true,                     // Start in auto mode (no manual control)
 
   // === Sensing (smooth + delta-paid) ===
-  aiSensoryRangeBase: 220,
-  aiSensoryRangeMax: 560,
+  aiSensoryRangeBase: 160,            // Reduced from 220 (tighter base vision)
+  aiSensoryRangeMax: 360,             // Reduced from 560 (less popping)
   aiSenseCostPerSecond: 1.0,
-  aiSenseRangePerChi: 55,
+  aiSenseRangePerChi: 30,             // Reduced from 55 (83% more expensive!)
   aiSenseBiasFromFrustr: 0.65,
   aiSenseSlewPerSec: 380,
 
@@ -80,15 +114,15 @@ export const CONFIG = {
   // === Exploration & Trail Following ===
   aiExploreNoiseBase: 0.15,
   aiExploreNoiseGain: 0.55,
-  aiTrailFollowingNear: 0.75,
+  aiTrailFollowingNear: 0.25,
   aiTrailFollowingFar: 2.6,
   aiSampleDistance: 46,
 
   // === Frustration (now smooth 0..1) ===
-  aiFrustrationBuildRate: 0.25,
+  aiFrustrationBuildRate: 0.15,       // Reduced from 0.25 (slower frustration build)
   aiFrustrationDecayRate: 0.6,
   aiFrustrationSightGrace: 90,
-  aiFrustrationLowTrail: 0.20,
+  aiFrustrationLowTrail: 0.15,        // Reduced from 0.20 (stricter threshold)
 
   // === Frustration Effects ===
   aiSurgeMax: 0.35,
@@ -125,6 +159,25 @@ export const CONFIG = {
     densityRadiusFar: 600,            // Far field radius (pixels)
   },
 
+  // === Mitosis System (Reproduction Mechanics) ===
+  // Agents can reproduce when they have sufficient energy
+  mitosis: {
+    enabled: true,                    // Enable mitosis system
+    enabledDuringTraining: false,     // Disable during training (keep population fixed)
+    threshold: 30,                    // Minimum χ required to reproduce
+    cost: 15,                         // χ spent by parent on reproduction
+    childStartChi: 12,                // Child's starting χ
+    cooldown: 300,                    // Ticks between mitosis attempts (5 seconds at 60fps)
+    maxAgents: 32,                    // Hard population cap
+    spawnOffset: 60,                  // Distance from parent to spawn child (pixels)
+    inheritHeading: true,             // Child inherits parent's heading (with noise)
+    headingNoise: 0.8,                // Radians of noise added to inherited heading
+    
+    // Population dynamics
+    respectCarryingCapacity: true,    // Integrate with resource ecology
+    carryingCapacityMultiplier: 1.5,  // Allow population = resources × multiplier
+  },
+
   // === HUD ===
   hud: { 
     show: true,
@@ -147,15 +200,15 @@ export const CONFIG = {
       chiGain: 0.5,               // +R per χ gained (residual reuse)
       chiSpend: -0.1,             // -R per χ spent
       stuck: -0.8,                // -R when stuck near walls
-      idle: -0.2,                 // -R per tick when idle
+      idle: -0.5,                 // -R per tick when idle
       explore: 10.0,              // +R for unique trail coverage
-      provenanceCredit: 1,        // +R when others reuse your trails
+      provenanceCredit: .5,        // +R when others reuse your trails
       death: -50.0,               // -R when χ reaches 0
       gradientClimb: 2.0,         // +R per pixel moved closer to food (gradient climbing)
     },
     
     // Episode settings
-    episodeLength: 5000,          // max ticks per episode
+    episodeLength: 3000,          // max ticks per episode
     terminateOnDeath: true,       // end episode when χ = 0
     
     // CEM/CMA-ES settings

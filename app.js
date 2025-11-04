@@ -1,7 +1,7 @@
-// Slime-Bundle v0.5 — Learning system with pluggable controllers
+// Slime-Bundle v0.6 — Learning system with plant ecology
 // Controls: [WASD/Arrows]=move (Agent 1 when MANUAL) | [A]=auto toggle | [S]=toggle extended sensing
-// [G]=scent gradient viz | [Space]=pause [R]=reset [C]=+5χ all [T]=trail on/off [X]=clear trail [F]=diffusion on/off
-// [1-4]=toggle individual agents | [V]=toggle all agents visibility | [L]=training UI
+// [G]=scent gradient viz | [P]=fertility viz | [M]=mitosis toggle | [Space]=pause [R]=reset [C]=+5χ all 
+// [T]=trail on/off [X]=clear trail [F]=diffusion on/off | [1-4]=toggle individual agents | [V]=toggle all | [L]=training UI
 
 import { CONFIG } from './config.js';
 import { HeuristicController, LinearPolicyController } from './controllers.js';
@@ -10,6 +10,7 @@ import { RewardTracker, EpisodeManager, updateFindTimeEMA, calculateAdaptiveRewa
 import { CEMLearner, TrainingManager } from './learner.js';
 import { TrainingUI } from './trainingUI.js';
 import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.js';
+import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResourceSpawnLocation } from './plantEcology.js';
 
 (() => {
     const canvas = document.getElementById("view");
@@ -31,6 +32,7 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
     // ---------- Input ----------
     const held = new Set();
     let showScentGradient = false; // Toggle for scent gradient visualization
+    let showFertility = false; // Toggle for fertility grid visualization
     
     window.addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
@@ -45,6 +47,13 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
       else if (e.code === "KeyA") { CONFIG.autoMove = !CONFIG.autoMove; }
       else if (e.code === "KeyL") { if (window.trainingUI) window.trainingUI.toggle(); }
       else if (e.code === "KeyG") { showScentGradient = !showScentGradient; } // Toggle scent gradient visualization
+      else if (e.code === "KeyM") { 
+        CONFIG.mitosis.enabled = !CONFIG.mitosis.enabled; 
+        console.log(`🧫 Mitosis ${CONFIG.mitosis.enabled ? "ENABLED" : "DISABLED"}`);
+      } // Toggle mitosis
+      else if (e.code === "KeyP") { 
+        showFertility = !showFertility; 
+      } // Toggle plant/fertility visualization
       // Toggle individual agents visibility
       else if (e.code === "Digit1") { if (World.bundles[0]) World.bundles[0].visible = !World.bundles[0].visible; }
       else if (e.code === "Digit2") { if (World.bundles[1]) World.bundles[1].visible = !World.bundles[1].visible; }
@@ -60,6 +69,65 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
     const smoothstep = (e0,e1,x)=> {
       const t = clamp((x - e0) / Math.max(1e-6, e1 - e0), 0, 1);
       return t * t * (3 - 2 * t);
+    };
+    
+    // Generate color for agent based on ID (supports unlimited agents)
+    const getAgentColor = (id, alive = true) => {
+      // First 4 agents use classic colors for consistency
+      const classicColors = {
+        1: { alive: "#00ffff", dead: "#005555" },  // cyan
+        2: { alive: "#ff00ff", dead: "#550055" },  // magenta
+        3: { alive: "#ffff00", dead: "#555500" },  // yellow
+        4: { alive: "#ff8800", dead: "#553300" },  // orange
+      };
+      
+      if (id <= 4 && classicColors[id]) {
+        return alive ? classicColors[id].alive : classicColors[id].dead;
+      }
+      
+      // For agents beyond 4, use HSL with varying hue
+      const hue = ((id - 1) * 137.5) % 360; // Golden angle for good distribution
+      const saturation = alive ? 100 : 30;
+      const lightness = alive ? 50 : 20;
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    };
+    
+    // Get RGB values for trail rendering
+    const getAgentColorRGB = (id) => {
+      // First 4 use classic RGB
+      const classicRGB = {
+        1: { r: 0, g: 255, b: 255 },    // cyan
+        2: { r: 255, g: 0, b: 255 },    // magenta
+        3: { r: 255, g: 255, b: 0 },    // yellow
+        4: { r: 255, g: 136, b: 0 }     // orange
+      };
+      
+      if (id <= 4 && classicRGB[id]) {
+        return classicRGB[id];
+      }
+      
+      // Convert HSL to RGB for agents beyond 4
+      const hue = ((id - 1) * 137.5) % 360;
+      const s = 1.0;
+      const l = 0.5;
+      
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+      const m = l - c / 2;
+      
+      let r, g, b;
+      if (hue < 60) { r = c; g = x; b = 0; }
+      else if (hue < 120) { r = x; g = c; b = 0; }
+      else if (hue < 180) { r = 0; g = c; b = x; }
+      else if (hue < 240) { r = 0; g = x; b = c; }
+      else if (hue < 300) { r = x; g = 0; b = c; }
+      else { r = c; g = 0; b = x; }
+      
+      return {
+        r: Math.round((r + m) * 255),
+        g: Math.round((g + m) * 255),
+        b: Math.round((b + m) * 255)
+      };
     };
   
     // ---------- Global time & economy ----------
@@ -183,22 +251,14 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         if (!CONFIG.renderTrail || !this.buf || !this.offscreen) return;
         const data = this.img.data;
         
-        // Agent colors (RGB)
-        const agentColors = {
-          1: { r: 0, g: 255, b: 255 },    // cyan
-          2: { r: 255, g: 0, b: 255 },    // magenta
-          3: { r: 255, g: 255, b: 0 },    // yellow
-          4: { r: 255, g: 136, b: 0 }     // orange
-        };
-        
         for (let i = 0; i < this.buf.length; i++) {
           const v = this.buf[i];                 // 0..1
           const authorId = this.authorBuf[i];
           const intensity = Math.floor(Math.pow(v, 0.6) * 255);
           const o = i * 4;
           
-          // Get color based on author, default to green if unknown
-          const color = agentColors[authorId] || { r: 0, g: 255, b: 0 };
+          // Get color based on author using dynamic color function
+          const color = authorId !== 0 ? getAgentColorRGB(authorId) : { r: 0, g: 255, b: 0 };
           
           data[o+0] = Math.floor(color.r * intensity / 255);
           data[o+1] = Math.floor(color.g * intensity / 255);
@@ -221,6 +281,12 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
       }
     };
     resize();
+    
+    // ---------- Fertility Grid (Plant Ecology) ----------
+    let FertilityField = null;
+    if (CONFIG.plantEcology.enabled) {
+      FertilityField = new FertilityGrid(innerWidth, innerHeight);
+    }
   
     // ---------- Entities ----------
     class Bundle {
@@ -256,6 +322,11 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         
         // visibility toggle
         this.visible = true; // Agent is visible by default
+        
+        // mitosis tracking
+        this.lastMitosisTick = 0; // Last tick when mitosis occurred
+        this.generation = 0; // Generation counter (0 = original)
+        this.parentId = null; // ID of parent (null for originals)
       }
   
       computeSensoryRange(dt) {
@@ -278,17 +349,23 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         const delta = clamp(this._targetSensoryRange - this.currentSensoryRange, -slew, slew);
         const newRange = clamp(this.currentSensoryRange + delta, base, max);
   
-        // χ cost proportional to *delta above base* for this frame + small holding cost
+        // χ cost proportional to *delta above base* for this frame + quadratic holding cost
         const achievedBoost = Math.max(0, newRange - this.currentSensoryRange);
         const pxPerChiPerSec = CONFIG.aiSenseRangePerChi;
         const chiPerSecForBoost = achievedBoost > 0 ? (achievedBoost / dt) / pxPerChiPerSec : 0;
         let cost = chiPerSecForBoost * dt;
   
+        // Quadratic holding cost - scales with range²! Makes max range very expensive
         const aboveBase = Math.max(0, newRange - base);
-        const holdChiPerSec = aboveBase / (pxPerChiPerSec * 8);
+        const holdChiPerSec = (aboveBase * aboveBase) / (pxPerChiPerSec * 100);
         cost += holdChiPerSec * dt;
+        
+        // Hunger scaling - hungry agents can't afford expensive sensing
+        const h = clamp(this.hunger, 0, 1);
+        const hungerPenalty = 1 + h * 0.5;  // 0-50% more expensive when hungry
+        cost *= hungerPenalty;
   
-        // Don’t overspend χ
+        // Don't overspend χ
         if (cost > this.chi) {
           const scale = this.chi / Math.max(cost, 1e-6);
           const scaledBoost = achievedBoost * scale;
@@ -542,18 +619,13 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         // Skip rendering if not visible
         if (!this.visible) return;
         
-        // agent colors
-        const colors = {
-          1: this.alive ? "#00ffff" : "#005555",  // cyan
-          2: this.alive ? "#ff00ff" : "#550055",  // magenta
-          3: this.alive ? "#ffff00" : "#555500",  // yellow
-          4: this.alive ? "#ff8800" : "#553300",  // orange
-        };
+        // Get color using dynamic color function
+        const color = getAgentColor(this.id, this.alive);
 
         // sensory ring when extended
         if (this.extendedSensing && this.alive) {
           ctx.save();
-          ctx.strokeStyle = colors[this.id] || "#ffffff";
+          ctx.strokeStyle = color;
           ctx.globalAlpha = 0.3;
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -561,7 +633,7 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
           ctx.stroke();
           ctx.restore();
         }
-  
+
         // Controller indicator - glowing border when using policy
         if (this.useController && this.controller && this.alive) {
           ctx.save();
@@ -596,9 +668,9 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
           ctx.stroke();
           ctx.restore();
         }
-  
+
         // body
-        ctx.fillStyle = colors[this.id] || (this.alive ? "#ffffff" : "#555555");
+        ctx.fillStyle = color;
         const half = this.size / 2;
         ctx.fillRect(this.x - half, this.y - half, this.size, this.size);
         
@@ -719,20 +791,154 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         const dx = res.x - rx, dy = res.y - ry;
         return (dx*dx + dy*dy) <= (res.r * res.r);
       }
+
+      /**
+       * Check if this agent can perform mitosis
+       */
+      canMitosis() {
+        if (!CONFIG.mitosis.enabled) return false;
+        if (!this.alive) return false;
+        if (this.chi < CONFIG.mitosis.threshold) return false;
+        
+        // Check cooldown
+        const ticksSinceLastMitosis = globalTick - this.lastMitosisTick;
+        if (ticksSinceLastMitosis < CONFIG.mitosis.cooldown) return false;
+        
+        // Check population cap
+        if (World.bundles.length >= CONFIG.mitosis.maxAgents) return false;
+        
+        // Check carrying capacity (if enabled)
+        if (CONFIG.mitosis.respectCarryingCapacity) {
+          const maxPopulation = Math.floor(
+            World.resources.length * CONFIG.mitosis.carryingCapacityMultiplier
+          );
+          if (World.bundles.length >= maxPopulation) return false;
+        }
+        
+        return true;
+      }
+
+      /**
+       * Perform mitosis - create a child agent
+       * Returns the child bundle or null if failed
+       */
+      doMitosis() {
+        if (!this.canMitosis()) return null;
+        
+        // Pay reproduction cost
+        this.chi -= CONFIG.mitosis.cost;
+        
+        // Calculate spawn position (offset from parent)
+        const angle = CONFIG.mitosis.inheritHeading 
+          ? this.heading + (Math.random() - 0.5) * CONFIG.mitosis.headingNoise
+          : Math.random() * Math.PI * 2;
+        
+        const offset = CONFIG.mitosis.spawnOffset;
+        let childX = this.x + Math.cos(angle) * offset;
+        let childY = this.y + Math.sin(angle) * offset;
+        
+        // Keep child in bounds
+        const half = this.size / 2;
+        childX = clamp(childX, half, innerWidth - half);
+        childY = clamp(childY, half, innerHeight - half);
+        
+        // Generate new ID (use next available)
+        const childId = World.nextAgentId++;
+        
+        // Create child
+        const child = new Bundle(
+          childX, childY,
+          this.size,
+          CONFIG.mitosis.childStartChi,
+          childId,
+          this.useController
+        );
+        
+        // Inherit properties from parent
+        child.heading = angle;
+        child._lastDirX = Math.cos(angle);
+        child._lastDirY = Math.sin(angle);
+        child.controller = this.controller; // Share policy (if any)
+        child.extendedSensing = this.extendedSensing;
+        child.generation = this.generation + 1;
+        child.parentId = this.id;
+        child.lastMitosisTick = globalTick; // Prevent immediate re-mitosis
+        
+        // Update parent's mitosis tracking
+        this.lastMitosisTick = globalTick;
+        
+        // Add child to world
+        World.bundles.push(child);
+        World.totalBirths++;
+        
+        console.log(`🧫 Mitosis! Agent ${this.id} (gen ${this.generation}) → Agent ${child.id} (gen ${child.generation}) | Pop: ${World.bundles.length}`);
+        
+        return child;
+      }
+
+      /**
+       * Attempt mitosis if conditions are met (called each frame)
+       */
+      attemptMitosis() {
+        if (this.canMitosis()) {
+          this.doMitosis();
+        }
+      }
     }
   
     class Resource {
-      constructor(x, y, r) { this.x = x; this.y = y; this.r = r; }
+      constructor(x, y, r) { 
+        this.x = x; 
+        this.y = y; 
+        this.r = r; 
+        this.age = 0; // Ticks since spawn (for visualization)
+      }
+      
       draw(ctx) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
-        ctx.fillStyle = "#00ff88";
+        
+        // Color based on local fertility if plant ecology enabled
+        if (CONFIG.plantEcology.enabled && FertilityField) {
+          const fertility = FertilityField.sampleAt(this.x, this.y);
+          const brightness = Math.floor(155 + fertility * 100);
+          ctx.fillStyle = `rgb(0, ${brightness}, 88)`;
+        } else {
+          ctx.fillStyle = "#00ff88";
+        }
+        
         ctx.fill();
+        
+        // Optional: Show young resources with a glow (recently sprouted)
+        if (CONFIG.plantEcology.enabled && this.age < 60) {
+          ctx.save();
+          ctx.strokeStyle = `rgba(0, 255, 136, ${1 - this.age / 60})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.r + 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
+      
       respawn() {
-        const margin = 60; // Larger margin to keep resources away from edges
-        this.x = margin + Math.random() * (innerWidth  - 2*margin);
-        this.y = margin + Math.random() * (innerHeight - 2*margin);
+        // Use fertility-based spawning if plant ecology enabled
+        if (CONFIG.plantEcology.enabled && FertilityField) {
+          const location = getResourceSpawnLocation(FertilityField, innerWidth, innerHeight);
+          this.x = location.x;
+          this.y = location.y;
+        } else {
+          // Fallback: random spawn
+          const margin = 60;
+          this.x = margin + Math.random() * (innerWidth  - 2*margin);
+          this.y = margin + Math.random() * (innerHeight - 2*margin);
+        }
+        
+        this.age = 0;
+      }
+      
+      update(dt) {
+        this.age++;
       }
     }
   
@@ -742,6 +948,10 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
       bundles: [],
       resources: [],  // Changed from single resource to array
       collected: 0,
+      
+      // Mitosis tracking
+      nextAgentId: 5,  // Start at 5 (after initial 4 agents: 1-4)
+      totalBirths: 0,  // Count of all mitosis events
       
       // === Resource Ecology (carrying capacity model) ===
       carryingCapacity: 0,           // Current max resources (starts high, declines to stable)
@@ -762,6 +972,11 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         Trail.clear();
         globalTick = 0;
         Ledger.credits = {};
+        
+        // Reset mitosis tracking
+        this.nextAgentId = 5;
+        this.totalBirths = 0;
+        
         const cx = innerWidth / 2, cy = innerHeight / 2;
         this.bundles = [
           new Bundle(cx - 100, cy - 80, CONFIG.bundleSize, CONFIG.startChi, 1),
@@ -942,11 +1157,21 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
       bar(10, 76, 60, 4, b4.frustration, "#ff8855");
       bar(73, 76, 60, 4, b4.hunger, "#ff8800");
   
+      // Population summary (if more than 4 agents)
+      if (World.bundles.length > 4) {
+        ctx.fillStyle = "#88ffff";
+        const aliveCount = World.bundles.filter(b => b.alive).length;
+        const totalChi = World.bundles.reduce((sum, b) => sum + b.chi, 0);
+        const avgChi = totalChi / World.bundles.length;
+        ctx.fillText(`📊 Population: ${aliveCount}/${World.bundles.length} alive | Avg χ: ${avgChi.toFixed(1)} | Births: ${World.totalBirths}`, 10, 94);
+      }
+      
       // General info
       ctx.fillStyle = "#00ff88";
       const mode = CONFIG.autoMove ? "AUTO" : "MANUAL";
       const diffState = CONFIG.enableDiffusion ? "ON" : "OFF";
       const learningModeDisplay = learningMode === 'train' ? "TRAINING" : "PLAY";
+      const mitosisStatus = CONFIG.mitosis.enabled ? "ON" : "OFF";
       
       // Resource ecology info
       let resourceInfo = `resources: ${World.resources.length}`;
@@ -954,24 +1179,33 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
         resourceInfo = `🌿 resources: ${World.resources.length}/${World.carryingCapacity} (pressure: ${(World.resourcePressure * 100).toFixed(0)}%)`;
       }
       
-      ctx.fillText(`${mode} | ${learningModeDisplay} | collected: ${World.collected} | ${resourceInfo} | tick: ${globalTick} | diffusion: ${diffState}`, 10, 94);
+      const yOffset = World.bundles.length > 4 ? 110 : 94;
+      ctx.fillText(`${mode} | ${learningModeDisplay} | collected: ${World.collected} | ${resourceInfo} | tick: ${globalTick} | diffusion: ${diffState} | mitosis: ${mitosisStatus}`, 10, yOffset);
       
       // Adaptive Reward Stats (if enabled)
+      const scentStatus = showScentGradient ? "ON" : "OFF";
+      const fertilityStatus = showFertility ? "ON" : "OFF";
+      let controlsY1, controlsY2, controlsY3;
+      
       if (CONFIG.adaptiveReward?.enabled) {
         ctx.fillStyle = "#ffaa00";
         const nextReward = calculateAdaptiveReward(World.avgFindTime);
+        const adaptiveY = World.bundles.length > 4 ? 126 : 110;
         ctx.fillText(
           `Adaptive Reward: avgFind=${World.avgFindTime.toFixed(2)}s | nextReward≈${nextReward.toFixed(1)}χ | avgGiven=${World.rewardStats.avgRewardGiven.toFixed(1)}χ`,
-          10, 110
+          10, adaptiveY
         );
         ctx.fillStyle = "#00ff88";
-        const scentStatus = showScentGradient ? "ON" : "OFF";
-        ctx.fillText(`[WASD]=move [A]=auto [S]=extSense [G]=scent(${scentStatus}) [Space]=pause [R]=reset [C]=+5χ [T]=trail [X]=clear [F]=diffuse [L]=train`, 10, 126);
-        ctx.fillText(`[1-4]=toggle agent [V]=toggle all agents`, 10, 142);
+        controlsY1 = World.bundles.length > 4 ? 142 : 126;
+        controlsY2 = World.bundles.length > 4 ? 158 : 142;
+        controlsY3 = World.bundles.length > 4 ? 174 : 158;
+        ctx.fillText(`[WASD]=move [A]=auto [S]=extSense [G]=scent(${scentStatus}) [P]=fertility(${fertilityStatus}) [M]=mitosis(${mitosisStatus}) [Space]=pause [R]=reset [C]=+5χ`, 10, controlsY1);
+        ctx.fillText(`[T]=trail [X]=clear [F]=diffuse [L]=train | [1-4]=toggle agent [V]=toggle all`, 10, controlsY2);
       } else {
-        const scentStatus = showScentGradient ? "ON" : "OFF";
-        ctx.fillText(`[WASD]=move [A]=auto [S]=extSense [G]=scent(${scentStatus}) [Space]=pause [R]=reset [C]=+5χ [T]=trail [X]=clear [F]=diffuse [L]=train`, 10, 110);
-        ctx.fillText(`[1-4]=toggle agent [V]=toggle all agents`, 10, 126);
+        controlsY1 = World.bundles.length > 4 ? 126 : 110;
+        controlsY2 = World.bundles.length > 4 ? 142 : 126;
+        ctx.fillText(`[WASD]=move [A]=auto [S]=extSense [G]=scent(${scentStatus}) [P]=fertility(${fertilityStatus}) [M]=mitosis(${mitosisStatus}) [Space]=pause [R]=reset [C]=+5χ`, 10, controlsY1);
+        ctx.fillText(`[T]=trail [X]=clear [F]=diffuse [L]=train | [1-4]=toggle agent [V]=toggle all`, 10, controlsY2);
       }
       ctx.restore();
     }
@@ -1049,17 +1283,66 @@ import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.j
               b.hunger = Math.max(0, b.hunger - CONFIG.hungerDecayOnCollect);
               World.collected += 1;
               World.onResourceCollected(); // Track ecology impact
+              
+              // Deplete fertility at harvest location (plant ecology)
+              if (CONFIG.plantEcology.enabled && FertilityField) {
+                FertilityField.depleteAt(res.x, res.y, globalTick);
+              }
+              
               res.respawn();
               break; // Only collect one resource per frame
             }
           }
         });
-  
+        
+        // Update resources (aging)
+        World.resources.forEach(res => res.update(dt));
+        
+        // Plant Ecology: Seed dispersal and spontaneous growth
+        if (CONFIG.plantEcology.enabled && FertilityField) {
+          // Seed dispersal (resources spawn near existing ones)
+          const seedLocation = attemptSeedDispersal(World.resources, FertilityField, globalTick);
+          if (seedLocation && World.resources.length < CONFIG.resourceStableMax) {
+            const newResource = new Resource(seedLocation.x, seedLocation.y, CONFIG.resourceRadius);
+            World.resources.push(newResource);
+            console.log(`🌱 Seed sprouted at (${Math.round(seedLocation.x)}, ${Math.round(seedLocation.y)}) | Fertility: ${seedLocation.fertility.toFixed(2)}`);
+          }
+          
+          // Spontaneous growth (resources appear in fertile soil)
+          const growthLocation = attemptSpontaneousGrowth(FertilityField);
+          if (growthLocation && World.resources.length < CONFIG.resourceStableMax) {
+            const newResource = new Resource(growthLocation.x, growthLocation.y, CONFIG.resourceRadius);
+            World.resources.push(newResource);
+            console.log(`🌿 Spontaneous growth at (${Math.round(growthLocation.x)}, ${Math.round(growthLocation.y)}) | Fertility: ${growthLocation.fertility.toFixed(2)}`);
+          }
+          
+          // Update fertility grid (recovery + population pressure)
+          const aliveCount = World.bundles.filter(b => b.alive).length;
+          FertilityField.update(dt, aliveCount, globalTick);
+        }
+
+        // Mitosis - agents attempt reproduction (only in play mode, not during training)
+        if (learningMode === 'play') {
+          // Use traditional for loop to avoid issues with array modification during iteration
+          const currentBundles = [...World.bundles]; // Copy array
+          currentBundles.forEach(b => {
+            if (b.alive) {
+              b.attemptMitosis();
+            }
+          });
+        }
+
         globalTick++;
       }
   
       // draw
       ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw fertility visualization if enabled (below trails)
+      if (showFertility && CONFIG.plantEcology.enabled && FertilityField) {
+        FertilityField.draw(ctx);
+      }
+      
       Trail.draw();
       
       // Draw scent gradient visualization if enabled
