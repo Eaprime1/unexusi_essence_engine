@@ -1573,12 +1573,15 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         palette = agentPalette,
         textX = 10,
         baseTextY = 18,
-        baseBarY = 22,
-        rowSpacing = 18,
+        baseBarY = 24,
+        rowSpacing = 24,
         barWidth = 60,
         barHeight = 4,
-        hungerBarX = 73,
-        hungerColor = "#ff8800"
+        frustrationBarX = 260,
+        hungerBarX = 340,
+        hungerColor = "#ff8800",
+        metricsFont = "10px ui-mono, monospace",
+        metricsGap = 6
       } = options;
 
       const paletteEntry = palette[index] || { text: getAgentColor(bundle.id, bundle.alive), frustration: "#ff5555" };
@@ -1607,8 +1610,20 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         textY
       );
 
-      drawBar(textX, barY, barWidth, barHeight, bundle.frustration, paletteEntry.frustration);
+      drawBar(frustrationBarX, barY, barWidth, barHeight, bundle.frustration, paletteEntry.frustration);
       drawBar(hungerBarX, barY, barWidth, barHeight, bundle.hunger, hungerColor);
+
+      const frustrationPct = Math.round(bundle.frustration * 100);
+      const hungerPct = Math.round(bundle.hunger * 100);
+      ctx.save();
+      ctx.font = metricsFont;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = paletteEntry.frustration;
+      ctx.fillText(`F ${frustrationPct}%`, frustrationBarX + barWidth / 2, barY + barHeight + metricsGap);
+      ctx.fillStyle = hungerColor;
+      ctx.fillText(`H ${hungerPct}%`, hungerBarX + barWidth / 2, barY + barHeight + metricsGap);
+      ctx.restore();
     }
 
     // ---------- HUD ----------
@@ -1617,29 +1632,39 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       ctx.save();
       ctx.font = "12px ui-mono, monospace";
 
-      // HUD Header with bar legend
+      const layoutOptions = {
+        palette: agentPalette,
+        textX: 10,
+        baseTextY: 20,
+        baseBarY: 26,
+        rowSpacing: 26,
+        barWidth: 70,
+        barHeight: 5,
+        frustrationBarX: 280,
+        hungerBarX: 370,
+        hungerColor: "#ff8800",
+        metricsFont: "10px ui-mono, monospace",
+        metricsGap: 4
+      };
+
+      // HUD Header with bar legend aligned to the columns
+      ctx.save();
       ctx.fillStyle = "#888";
       ctx.font = "10px ui-mono, monospace";
-      ctx.fillText("Frustration │ Hunger", 145, 12);
+      ctx.textAlign = "center";
+      const headerY = 12;
+      ctx.fillText("Frustration", layoutOptions.frustrationBarX + layoutOptions.barWidth / 2, headerY);
+      ctx.fillText("Hunger", layoutOptions.hungerBarX + layoutOptions.barWidth / 2, headerY);
+      ctx.restore();
+      ctx.textAlign = "left";
       ctx.font = "12px ui-mono, monospace";
 
       const maxDisplay = agentPalette.length;
-      const options = {
-        palette: agentPalette,
-        textX: 10,
-        baseTextY: 18,
-        baseBarY: 22,
-        rowSpacing: 18,
-        barWidth: 60,
-        barHeight: 4,
-        hungerBarX: 73,
-        hungerColor: "#ff8800"
-      };
 
       const hasOverflow = World.bundles.length > maxDisplay;
 
       World.bundles.slice(0, maxDisplay).forEach((bundle, index) => {
-        renderAgentRow(ctx, bundle, index, options);
+        renderAgentRow(ctx, bundle, index, layoutOptions);
       });
 
       const lineHeight = 14;
@@ -1669,12 +1694,19 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         const aliveCount = World.bundles.filter(b => b.alive).length;
         const totalChi = World.bundles.reduce((sum, b) => sum + b.chi, 0);
         const avgChi = World.bundles.length ? totalChi / World.bundles.length : 0;
+        const avgFrustration = World.bundles.length
+          ? World.bundles.reduce((sum, b) => sum + b.frustration, 0) / World.bundles.length
+          : 0;
+        const avgHunger = World.bundles.length
+          ? World.bundles.reduce((sum, b) => sum + b.hunger, 0) / World.bundles.length
+          : 0;
         hudSections.push({
           label: "population",
           color: "#88ffff",
           lines: [
             `📊 population ${aliveCount}/${World.bundles.length}`,
-            `${"avg χ".padEnd(10)}${avgChi.toFixed(1)}   ${"births".padEnd(10)}${World.totalBirths}`
+            `${"avg χ".padEnd(10)}${avgChi.toFixed(1)}   ${"births".padEnd(10)}${World.totalBirths}`,
+            `${"avg F/H".padEnd(10)}${Math.round(avgFrustration * 100)}% / ${Math.round(avgHunger * 100)}%`
           ]
         });
       }
@@ -1706,10 +1738,18 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         resourceDetails = `pressure ${(World.resourcePressure * 100).toFixed(0)}%`;
       }
 
+      const avgFrustration = World.bundles.length
+        ? World.bundles.reduce((sum, b) => sum + b.frustration, 0) / World.bundles.length
+        : 0;
+      const avgHunger = World.bundles.length
+        ? World.bundles.reduce((sum, b) => sum + b.hunger, 0) / World.bundles.length
+        : 0;
+
       const generalLines = [
         `${"mode".padEnd(10)}${mode.padEnd(8)}${"learning".padEnd(10)}${learningModeDisplay.padEnd(9)}`,
         `${"tick".padEnd(10)}${globalTick.toString().padEnd(8)}${"χ earned".padEnd(10)}${World.collected.toString().padEnd(8)}`,
-        `${"diffusion".padEnd(10)}${diffState.padEnd(4)}${"mitosis".padEnd(10)}${mitosisStatus.padEnd(4)}`
+        `${"diffusion".padEnd(10)}${diffState.padEnd(4)}${"mitosis".padEnd(10)}${mitosisStatus.padEnd(4)}`,
+        `${"avg F/H".padEnd(10)}${Math.round(avgFrustration * 100)}% / ${Math.round(avgHunger * 100)}%`
       ];
       const resourceLabel = "🌿 resources";
       generalLines.push(`${resourceLabel.padEnd(12)}${resourceSummary}`);
@@ -1747,7 +1787,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         lines: controlsLines
       });
 
-      let currentY = hasOverflow ? 110 : 94;
+      let currentY = hasOverflow ? 120 : 106;
       hudSections.forEach(section => {
         currentY = writeHudLines(section, currentY);
       });
