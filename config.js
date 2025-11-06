@@ -304,3 +304,594 @@ export const CONFIG = {
   },
 };
 
+// --- Snapshots for panel resets ---
+let CURRENT_BASE_SNAPSHOT = null;        // last loaded/applied profile
+let BOOT_SNAPSHOT = null;                // factory defaults (boot-time read)
+
+function initSnapshotsOnce() {
+  if (!BOOT_SNAPSHOT) BOOT_SNAPSHOT = ConfigIO.snapshot();
+  if (!CURRENT_BASE_SNAPSHOT) CURRENT_BASE_SNAPSHOT = BOOT_SNAPSHOT;
+}
+
+
+export const CONFIG_SCHEMA = {
+  Metabolism: {
+    startChi: { label: "Start χ", min: 0, max: 200, step: 1 },
+    baseDecayPerSecond: { label: "Leak χ/sec", min: 0, max: 2, step: 0.01 },
+    moveSpeedPxPerSec: { label: "Move speed (px/sec)", min: 10, max: 400, step: 5 },
+    moveCostPerSecond: { label: "Move χ/sec", min: 0, max: 5, step: 0.01 },
+    rewardChi: { label: "Pickup reward χ", min: 0, max: 200, step: 1 },
+  },
+  Resources: {
+    resourceRadius: { label: "Resource radius (px)", min: 1, max: 80, step: 1 },
+    bundleSize: { label: "Bundle size", min: 1, max: 200, step: 1 },
+    resourceDynamicCount: { label: "Dynamic resource count", type: "boolean" },
+    resourceInitialMin: { label: "Initial min resources", min: 0, max: 100, step: 1 },
+    resourceInitialMax: { label: "Initial max resources", min: 0, max: 150, step: 1 },
+    resourceStableMin: { label: "Stable min resources", min: 0, max: 100, step: 1 },
+    resourceStableMax: { label: "Stable max resources", min: 0, max: 150, step: 1 },
+    resourceDepletionRate: { label: "Depletion rate", min: 0, max: 1, step: 0.005 },
+    resourceRecoveryChance: { label: "Recovery chance", min: 0, max: 1, step: 0.01 },
+    resourceRespawnCooldown: { label: "Respawn cooldown (ticks)", min: 0, max: 2000, step: 10 },
+    resourceCount: { label: "Legacy resource count", min: 0, max: 200, step: 1 },
+    resourceScaleWithAgents: { label: "Scale with agents", type: "boolean" },
+    resourceBaseAbundance: { label: "Base abundance", min: 0, max: 500, step: 5 },
+    resourceCompetition: { label: "Competition factor", min: 0, max: 5, step: 0.01 },
+    resourceScaleMinimum: { label: "Scale minimum", min: 0, max: 200, step: 1 },
+    resourceScaleMaximum: { label: "Scale maximum", min: 0, max: 500, step: 5 },
+  },
+  "Plant Ecology": {
+    "plantEcology.enabled": { label: "Enable plant ecology", type: "boolean" },
+    "plantEcology.fertilityCell": { label: "Fertility cell (px)", min: 10, max: 200, step: 5 },
+    "plantEcology.initialFertility": { label: "Initial fertility", min: 0, max: 1, step: 0.01 },
+    "plantEcology.fertilityVariation": { label: "Fertility variation", min: 0, max: 1, step: 0.01 },
+    "plantEcology.seedChance": { label: "Seed chance/sec", min: 0, max: 1, step: 0.001 },
+    "plantEcology.seedDistance": { label: "Seed distance (px)", min: 0, max: 600, step: 5 },
+    "plantEcology.growthFertilityThreshold": { label: "Growth fertility threshold", min: 0, max: 1, step: 0.01 },
+    "plantEcology.growthChance": { label: "Growth chance/sec", min: 0, max: 1, step: 0.005 },
+    "plantEcology.patchCount": { label: "Patch count", min: 0, max: 40, step: 1 },
+    "plantEcology.patchRadius": { label: "Patch radius (px)", min: 0, max: 800, step: 10 },
+    "plantEcology.patchFertility": { label: "Patch fertility", min: 0, max: 1, step: 0.01 },
+    "plantEcology.harvestDepletion": { label: "Harvest depletion", min: 0, max: 1, step: 0.01 },
+    "plantEcology.harvestRadius": { label: "Harvest radius (px)", min: 0, max: 400, step: 5 },
+    "plantEcology.fertilityRecovery": { label: "Fertility recovery/sec", min: 0, max: 1, step: 0.01 },
+    "plantEcology.maxFertility": { label: "Max fertility", min: 0, max: 1, step: 0.01 },
+    "plantEcology.populationPressure": { label: "Enable population pressure", type: "boolean" },
+    "plantEcology.pressurePerAgent": { label: "Pressure per agent", min: 0, max: 0.5, step: 0.005 },
+    "plantEcology.pressureThreshold": { label: "Pressure threshold", min: 0, max: 200, step: 1 },
+    "plantEcology.spawnPressure.startAgents": { label: "Spawn pressure start agents", min: 0, max: 200, step: 1 },
+    "plantEcology.spawnPressure.maxAgents": { label: "Spawn pressure max agents", min: 0, max: 500, step: 1 },
+    "plantEcology.spawnPressure.minSeedMultiplier": { label: "Min seed multiplier", min: 0, max: 1, step: 0.01 },
+    "plantEcology.spawnPressure.minGrowthMultiplier": { label: "Min growth multiplier", min: 0, max: 1, step: 0.01 },
+    "plantEcology.spawnPressure.minResourceMultiplier": { label: "Min resource multiplier", min: 0, max: 1, step: 0.01 },
+  },
+  "Adaptive Reward": {
+    "adaptiveReward.enabled": { label: "Enable adaptive reward", type: "boolean" },
+    "adaptiveReward.gainFactor": { label: "Gain factor", min: 0, max: 20, step: 0.1 },
+    "adaptiveReward.avgMoveFraction": { label: "Avg move fraction", min: 0, max: 1, step: 0.01 },
+    "adaptiveReward.emaAlpha": { label: "EMA alpha", min: 0, max: 1, step: 0.01 },
+    "adaptiveReward.minReward": { label: "Min reward", min: 0, max: 200, step: 1 },
+    "adaptiveReward.maxReward": { label: "Max reward", min: 0, max: 500, step: 5 },
+    "adaptiveReward.useAbsoluteAnchor": { label: "Use absolute anchor", type: "boolean" },
+    "adaptiveReward.chiPerATP": { label: "χ per ATP", min: 0, max: 0.1, step: 0.000001 },
+    "adaptiveReward.moleculesPerPatch": { label: "Molecules per patch", min: 0, max: 1e10, step: 1e7 },
+    "adaptiveReward.atpPerGlucose": { label: "ATP per glucose", min: 0, max: 100, step: 1 },
+  },
+  Trails: {
+    trailCell: { label: "Trail cell (px)", min: 1, max: 40, step: 1 },
+    depositPerSec: { label: "Deposit/sec", min: 0, max: 10, step: 0.05 },
+    evapPerSec: { label: "Evap/sec", min: 0, max: 1, step: 0.01 },
+    diffusePerSec: { label: "Diffuse/sec", min: 0, max: 1, step: 0.01 },
+    enableDiffusion: { label: "Enable diffusion", type: "boolean" },
+    renderTrail: { label: "Render trails", type: "boolean" },
+    residualGainPerSec: { label: "Residual gain/sec", min: 0, max: 10, step: 0.1 },
+    residualCapPerTick: { label: "Residual cap/tick", min: 0, max: 5, step: 0.01 },
+    trailCooldownTicks: { label: "Trail cooldown (ticks)", min: 0, max: 200, step: 1 },
+    ownTrailPenalty: { label: "Own trail penalty", min: 0, max: 5, step: 0.05 },
+    ownTrailGraceAge: { label: "Own trail grace age", min: 0, max: 200, step: 1 },
+  },
+  Autonomy: {
+    autoMove: { label: "Auto move", type: "boolean" },
+    "controls.autoMove": { label: "Controls auto move", type: "boolean" },
+  },
+  Sensing: {
+    aiSensoryRangeBase: { label: "Base range (px)", min: 20, max: 800, step: 5 },
+    aiSensoryRangeMax: { label: "Max range (px)", min: 50, max: 1200, step: 10 },
+    aiSenseRangePerChi: { label: "Range per χ", min: 0, max: 200, step: 1 },
+    aiSenseBiasFromFrustr: { label: "Frustration bias", min: 0, max: 5, step: 0.01 },
+    aiSenseSlewPerSec: { label: "Sense slew/sec", min: 0, max: 1000, step: 10 },
+  },
+  "Wall & Collision": {
+    aiWallAvoidMargin: { label: "Wall avoid margin", min: 0, max: 400, step: 5 },
+    aiWallAvoidStrength: { label: "Wall avoid strength", min: 0, max: 10, step: 0.1 },
+    enableAgentCollision: { label: "Enable collision", type: "boolean" },
+    agentCollisionPushback: { label: "Collision pushback", min: 0, max: 2, step: 0.01 },
+  },
+  Behavior: {
+    aiExploreNoiseBase: { label: "Explore noise base", min: 0, max: 2, step: 0.01 },
+    aiExploreNoiseGain: { label: "Explore noise gain", min: 0, max: 4, step: 0.01 },
+    aiTrailFollowingNear: { label: "Trail follow (near)", min: 0, max: 10, step: 0.05 },
+    aiTrailFollowingFar: { label: "Trail follow (far)", min: 0, max: 10, step: 0.05 },
+    aiSampleDistance: { label: "Sample distance (px)", min: 0, max: 400, step: 1 },
+  },
+  Frustration: {
+    aiFrustrationBuildRate: { label: "Frustration build", min: 0, max: 5, step: 0.01 },
+    aiFrustrationDecayRate: { label: "Frustration decay", min: 0, max: 5, step: 0.01 },
+    aiFrustrationSightGrace: { label: "Sight grace", min: 0, max: 500, step: 1 },
+    aiFrustrationLowTrail: { label: "Low trail threshold", min: 0, max: 1, step: 0.01 },
+  },
+  "Frustration Effects": {
+    aiSurgeMax: { label: "Surge max", min: 0, max: 5, step: 0.01 },
+    aiTurnRateBase: { label: "Turn rate base", min: 0, max: 20, step: 0.1 },
+    aiTurnRateGain: { label: "Turn rate gain", min: 0, max: 20, step: 0.1 },
+  },
+  Hunger: {
+    hungerBuildRate: { label: "Hunger build/sec", min: 0, max: 5, step: 0.01 },
+    hungerDecayOnCollect: { label: "Hunger decay on collect", min: 0, max: 1, step: 0.01 },
+    hungerThresholdLow: { label: "Hunger low threshold", min: 0, max: 1, step: 0.01 },
+    hungerThresholdHigh: { label: "Hunger high threshold", min: 0, max: 1, step: 0.01 },
+    hungerExplorationAmp: { label: "Hunger explore amp", min: 0, max: 20, step: 0.1 },
+    hungerFrustrationAmp: { label: "Hunger frustration amp", min: 0, max: 20, step: 0.1 },
+    hungerSenseAmp: { label: "Hunger sense amp", min: 0, max: 20, step: 0.1 },
+    hungerSurgeAmp: { label: "Hunger surge amp", min: 0, max: 10, step: 0.1 },
+  },
+  "Scent Gradient": {
+    "scentGradient.enabled": { label: "Enable scent gradient", type: "boolean" },
+    "scentGradient.maxRange": { label: "Max range (px)", min: 0, max: 1000, step: 10 },
+    "scentGradient.falloffType": {
+      label: "Falloff type",
+      type: "options",
+      options: ["linear", "inverse", "inverse-square", "exponential"],
+    },
+    "scentGradient.strength": { label: "Scent strength", min: 0, max: 10, step: 0.1 },
+    "scentGradient.showSubtleIndicator": { label: "Show indicator", type: "boolean" },
+    "scentGradient.rewardEnabled": { label: "Enable distance reward", type: "boolean" },
+    "scentGradient.rewardScale": { label: "Reward scale", min: 0, max: 5, step: 0.01 },
+    "scentGradient.rewardUpdateInterval": { label: "Reward update interval", min: 0, max: 200, step: 0.1 },
+    "scentGradient.densitySensingEnabled": { label: "Density sensing", type: "boolean" },
+    "scentGradient.densityRadiusNear": { label: "Density radius near", min: 0, max: 1000, step: 10 },
+    "scentGradient.densityRadiusMid": { label: "Density radius mid", min: 0, max: 1000, step: 10 },
+    "scentGradient.densityRadiusFar": { label: "Density radius far", min: 0, max: 1000, step: 10 },
+    "scentGradient.consumable": { label: "Consumable gradient", type: "boolean" },
+    "scentGradient.consumePerSec": { label: "Consume/sec", min: 0, max: 1, step: 0.01 },
+    "scentGradient.recoverPerSec": { label: "Recover/sec", min: 0, max: 1, step: 0.01 },
+    "scentGradient.minStrength": { label: "Min strength", min: 0, max: 5, step: 0.01 },
+    "scentGradient.minRange": { label: "Min range (px)", min: 0, max: 400, step: 5 },
+    "scentGradient.orbitBandPx": { label: "Orbit band (px)", min: 0, max: 400, step: 5 },
+  },
+  Mitosis: {
+    "mitosis.enabled": { label: "Enable mitosis", type: "boolean" },
+    "mitosis.enabledDuringTraining": { label: "Enable during training", type: "boolean" },
+    "mitosis.threshold": { label: "Mitosis threshold", min: 0, max: 500, step: 1 },
+    "mitosis.cost": { label: "Mitosis cost", min: 0, max: 500, step: 1 },
+    "mitosis.childStartChi": { label: "Child start χ", min: 0, max: 200, step: 1 },
+    "mitosis.cooldown": { label: "Mitosis cooldown", min: 0, max: 5000, step: 10 },
+    "mitosis.maxAgents": { label: "Max agents", min: 0, max: 500, step: 1 },
+    "mitosis.maxAliveAgents": { label: "Max alive agents", min: 0, max: 500, step: 1 },
+    "mitosis.spawnOffset": { label: "Spawn offset (px)", min: 0, max: 400, step: 5 },
+    "mitosis.inheritHeading": { label: "Inherit heading", type: "boolean" },
+    "mitosis.headingNoise": { label: "Heading noise", min: 0, max: 3.14, step: 0.01 },
+    "mitosis.buddingThreshold": { label: "Budding threshold", min: 0, max: 500, step: 1 },
+    "mitosis.buddingShare": { label: "Budding share", min: 0, max: 1, step: 0.01 },
+    "mitosis.buddingOffset": { label: "Budding offset (px)", min: 0, max: 200, step: 1 },
+    "mitosis.buddingRespectCooldown": { label: "Budding respects cooldown", type: "boolean" },
+    "mitosis.respectCarryingCapacity": { label: "Respect carrying capacity", type: "boolean" },
+    "mitosis.carryingCapacityMultiplier": { label: "Carrying capacity multiplier", min: 0, max: 10, step: 0.1 },
+    "mitosis.showLineage": { label: "Show lineage", type: "boolean" },
+    "mitosis.lineageMaxDistance": { label: "Lineage max distance", min: 0, max: 20000, step: 10 },
+    "mitosis.lineageFadeDuration": { label: "Lineage fade duration", min: 0, max: 60000, step: 10 },
+    "mitosis.lineageOpacity": { label: "Lineage opacity", min: 0, max: 1, step: 0.01 },
+    "mitosis.lineageColor": { label: "Lineage color", type: "color" },
+  },
+  Decay: {
+    "decay.enabled": { label: "Enable decay", type: "boolean" },
+    "decay.duration": { label: "Decay duration", min: 0, max: 5000, step: 10 },
+    "decay.fertilityBoost": { label: "Fertility boost", min: 0, max: 5, step: 0.01 },
+    "decay.releaseRadius": { label: "Release radius (px)", min: 0, max: 400, step: 5 },
+    "decay.visualFade": { label: "Visual fade", type: "boolean" },
+    "decay.removeAfterDecay": { label: "Remove after decay", type: "boolean" },
+  },
+  HUD: {
+    "hud.show": { label: "Show HUD", type: "boolean" },
+    "hud.showActions": { label: "Show actions", type: "boolean" },
+  },
+  Learning: {
+    "learning.observationDims": { label: "Observation dimensions", min: 1, max: 200, step: 1 },
+    "learning.normalizeObs": { label: "Normalize observations", type: "boolean" },
+    "learning.turnRate": { label: "Turn rate", min: 0, max: 1, step: 0.001 },
+    "learning.thrustScale": { label: "Thrust scale", min: 0, max: 5, step: 0.01 },
+    "learning.rewards.collectResource": { label: "Reward: collect", min: -1000, max: 2000, step: 1 },
+    "learning.rewards.chiGain": { label: "Reward: χ gain", min: -10, max: 10, step: 0.01 },
+    "learning.rewards.chiSpend": { label: "Reward: χ spend", min: -10, max: 10, step: 0.01 },
+    "learning.rewards.stuck": { label: "Reward: stuck", min: -10, max: 10, step: 0.01 },
+    "learning.rewards.idle": { label: "Reward: idle", min: -10, max: 10, step: 0.01 },
+    "learning.rewards.explore": { label: "Reward: explore", min: -100, max: 500, step: 0.5 },
+    "learning.rewards.provenanceCredit": { label: "Reward: provenance", min: -10, max: 10, step: 0.01 },
+    "learning.rewards.death": { label: "Reward: death", min: -500, max: 0, step: 1 },
+    "learning.rewards.gradientClimb": { label: "Reward: gradient climb", min: -50, max: 50, step: 0.1 },
+    "learning.episodeLength": { label: "Episode length", min: 100, max: 20000, step: 10 },
+    "learning.terminateOnDeath": { label: "Terminate on death", type: "boolean" },
+    "learning.populationSize": { label: "Population size", min: 1, max: 200, step: 1 },
+    "learning.eliteCount": { label: "Elite count", min: 1, max: 200, step: 1 },
+    "learning.mutationStdDev": { label: "Mutation std dev", min: 0, max: 5, step: 0.01 },
+    "learning.generations": { label: "Generations", min: 1, max: 1000, step: 1 },
+  },
+  Rendering: {
+    "rendering.renderTrail": { label: "Render trail (UI)", type: "boolean" },
+    "rendering.hud.show": { label: "Render HUD", type: "boolean" },
+  },
+  Links: {
+    "link.radius": { label: "Link radius", min: 0, max: 500, step: 5 },
+    "link.formCost": { label: "Form cost χ", min: 0, max: 10, step: 0.01 },
+    "link.maintPerSec": { label: "Maintain χ/sec", min: 0, max: 1, step: 0.001 },
+    "link.decayPerSec": { label: "Decay/sec", min: 0, max: 1, step: 0.001 },
+    "link.strengthenPerUse": { label: "Strengthen per use", min: 0, max: 1, step: 0.001 },
+    "link.initStrength": { label: "Initial strength", min: 0, max: 1, step: 0.01 },
+    "link.minStrength": { label: "Min strength", min: 0, max: 1, step: 0.01 },
+    "link.guidanceGain": { label: "Guidance gain", min: 0, max: 5, step: 0.01 },
+    "link.springK": { label: "Spring K", min: 0, max: 0.1, step: 0.0005 },
+    "link.transfer.capPerSec": { label: "Transfer cap/sec", min: 0, max: 10, step: 0.01 },
+    "link.transfer.loss": { label: "Transfer loss", min: 0, max: 1, step: 0.01 },
+    "link.trailMin": { label: "Trail minimum", min: 0, max: 1, step: 0.01 },
+    "link.hungerEscape": { label: "Hunger escape", min: 0, max: 1, step: 0.01 },
+    "link.hungerDecayPerSec": { label: "Hunger decay/sec", min: 0, max: 1, step: 0.001 },
+  },
+  "Bond Loss": {
+    "bondLoss.onDeathExploreBoost": { label: "On-death explore boost", min: 0, max: 10, step: 0.01 },
+    "bondLoss.onDeathBoostDuration": { label: "On-death boost duration", min: 0, max: 10000, step: 10 },
+  },
+};
+// ===== Config Manager & Panel =====
+const PROFILES_KEY = "slime.presets.v1";
+
+const ConfigIO = {
+  // safely get/set nested CONFIG by "a.b.c"
+  get(path) {
+    const parts = path.split(".");
+    let cur = CONFIG;
+    for (const p of parts) cur = cur?.[p];
+    return cur;
+  },
+  set(path, value) {
+    const parts = path.split(".");
+    let cur = CONFIG;
+    for (let i=0; i<parts.length-1; i++) cur = cur[parts[i]];
+    cur[parts[parts.length-1]] = value;
+  },
+  snapshot() {
+    // capture only schema-listed keys to keep profiles tiny
+    const shot = {};
+    for (const group of Object.values(CONFIG_SCHEMA)) {
+      for (const path of Object.keys(group)) shot[path] = this.get(path);
+    }
+    // include a tiny version and timestamp for sanity
+    return { version: 1, ts: Date.now(), params: shot };
+  },
+  apply(snapshot) {
+    if (!snapshot?.params) return;
+    for (const [path, val] of Object.entries(snapshot.params)) {
+      if (CONFIG_SCHEMA && findPathInSchema(path)) this.set(path, val);
+    }
+    CURRENT_BASE_SNAPSHOT = snapshot;   // <- becomes the new "revert to" base
+    onConfigChanged();
+    refreshPanelControls();             // sync UI with applied values  
+    updateDirtyDot();                   // refresh dirty state
+  },
+  loadProfiles() {
+    try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || "[]"); }
+    catch { return []; }
+  },
+  saveProfiles(list) {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+  }
+};
+
+// Initialize snapshots after ConfigIO is defined
+initSnapshotsOnce();
+
+function findPathInSchema(path){
+  for (const group of Object.values(CONFIG_SCHEMA)) {
+    if (Object.prototype.hasOwnProperty.call(group, path)) return true;
+  }
+  return false;
+}
+
+function onConfigChanged() {
+  // react to critical changes
+  // If trailCell changed, resize trail grid:
+  if (typeof Trail !== 'undefined' && Trail && Trail.cell !== CONFIG.trailCell) Trail.resize();
+  // You can add other "apply" hooks as needed.
+}
+
+// ---- Panel helpers ----
+function panelEl() { return document.getElementById("config-panel"); }
+
+function refreshPanelControls() {
+  const root = panelEl();
+  if (!root) return;
+  root.querySelectorAll("[data-path]").forEach(inp => {
+    const p = inp.getAttribute("data-path");
+    const v = ConfigIO.get(p);
+    if (v !== undefined) {
+      if (inp.type === "checkbox") {
+        inp.checked = v;
+      } else if (inp.tagName === "SELECT") {
+        inp.value = v;
+      } else if (inp.type === "color") {
+        inp.value = v || "#000000";
+      } else {
+        inp.value = v;
+      }
+    }
+  });
+}
+
+function snapshotsEqual(a, b) {
+  if (!a || !b) return false;
+  const pa = a.params, pb = b.params;
+  for (const k of Object.keys(CONFIG_SCHEMA).flatMap(g => Object.keys(CONFIG_SCHEMA[g]))) {
+    if (pa[k] !== pb[k]) return false;
+  }
+  return true;
+}
+
+function currentVsBaseSnapshot() {
+  const cur = ConfigIO.snapshot();
+  const base = CURRENT_BASE_SNAPSHOT || BOOT_SNAPSHOT;
+  return { cur, base };
+}
+
+function updateDirtyDot() {
+  const dot = document.getElementById("cfg-dirty");
+  if (!dot) return;
+  const { cur, base } = currentVsBaseSnapshot();
+  dot.style.display = snapshotsEqual(cur, base) ? "none" : "inline";
+}
+
+// ---- UI builder ----
+let panelOpen = false;
+function buildConfigPanel(){
+  // panel shell
+  const wrap = document.createElement("div");
+  wrap.id = "config-panel";
+  Object.assign(wrap.style, {
+    position: "fixed", top: "0", right: "0", bottom: "0",
+    width: "360px", background: "rgba(12,12,16,0.96)", color:"#e6f3ec",
+    font: "12px ui-mono, Menlo, monospace", zIndex: 99999,
+    borderLeft: "1px solid #233", padding: "10px", overflowY: "auto",
+    display: "none"
+  });
+  wrap.innerHTML = `
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+    <strong style="font-size:13px;">Slime Config</strong>
+    <span id="cfg-dirty" title="Modified from loaded profile" style="color:#ffd166; display:none; margin-left:4px;">●</span>
+    <button id="cfg-revert"  title="Reset sliders to last loaded profile">Revert</button>
+    <button id="cfg-default" title="Reset sliders to boot-time defaults">Defaults</button>
+    <button id="cfg-collapse" title="Collapse all sections">Collapse All</button>
+    <button id="cfg-close" style="margin-left:auto;">✕</button>
+  </div>
+    <div id="cfg-profiles" style="display:flex; gap:6px; margin-bottom:8px;">
+      <select id="cfg-profile-list" style="flex:1"></select>
+      <button id="cfg-load">Load</button>
+      <button id="cfg-save">Save</button>
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:8px;">
+      <input id="cfg-name" placeholder="profile name" style="flex:1"/>
+      <button id="cfg-del">Delete</button>
+      <button id="cfg-exp">Export</button>
+      <button id="cfg-imp">Import</button>
+    </div>
+    <div id="cfg-groups"></div>
+    <div style="opacity:.6; margin-top:10px;">[P] toggle · [1–9] quick load</div>
+  `;
+  document.body.appendChild(wrap);
+
+  // groups & sliders
+  const groupsHost = wrap.querySelector("#cfg-groups");
+  for (const [groupName, fields] of Object.entries(CONFIG_SCHEMA)) {
+    const g = document.createElement("details");
+    g.open = true;
+    const sum = document.createElement("summary");
+    sum.textContent = groupName;
+    sum.style.margin = "8px 0";
+    g.appendChild(sum);
+
+    for (const [path, meta] of Object.entries(fields)) {
+      const val = ConfigIO.get(path);
+      const row = document.createElement("div");
+      row.style.margin = "6px 0";
+      
+      if (meta.type === "boolean") {
+        // Checkbox for boolean
+        row.innerHTML = `
+          <label style="display:flex; gap:6px; align-items:center;">
+            <span style="flex:1">${meta.label}</span>
+            <input type="checkbox" ${val ? "checked" : ""} data-path="${path}">
+          </label>
+        `;
+        const checkbox = row.querySelector("input");
+        checkbox.addEventListener("change", (e) => {
+          ConfigIO.set(path, e.target.checked);
+          onConfigChanged();
+          updateDirtyDot();
+        });
+      } else if (meta.type === "color") {
+        // Color picker for color
+        row.innerHTML = `
+          <label style="display:flex; gap:6px; align-items:center;">
+            <span style="flex:1">${meta.label}</span>
+            <input type="color" value="${val || "#000000"}" data-path="${path}" style="width:72px;">
+          </label>
+        `;
+        const color = row.querySelector("input");
+        color.addEventListener("change", (e) => {
+          ConfigIO.set(path, e.target.value);
+          onConfigChanged();
+          updateDirtyDot();
+        });
+      } else if (meta.type === "options") {
+        // Select dropdown for options
+        const options = meta.options.map(opt => `<option value="${opt}" ${val === opt ? "selected" : ""}>${opt}</option>`).join("");
+        row.innerHTML = `
+          <label style="display:flex; gap:6px; align-items:center;">
+            <span style="flex:1">${meta.label}</span>
+            <select data-path="${path}" style="flex:2">
+              ${options}
+            </select>
+          </label>
+        `;
+        const select = row.querySelector("select");
+        select.addEventListener("change", (e) => {
+          ConfigIO.set(path, e.target.value);
+          onConfigChanged();
+          updateDirtyDot();
+        });
+      } else {
+        // Range + number for numeric inputs
+        row.innerHTML = `
+          <label style="display:flex; gap:6px; align-items:center;">
+            <span style="flex:1">${meta.label}</span>
+            <input type="range" min="${meta.min}" max="${meta.max}" step="${meta.step}" value="${val}" data-path="${path}" style="flex:2">
+            <input type="number" min="${meta.min}" max="${meta.max}" step="${meta.step}" value="${val}" data-path="${path}" style="width:72px;">
+          </label>
+        `;
+        const [range, number] = row.querySelectorAll("input");
+        const sync = (v) => {
+          const num = Number(v);
+          range.value = num;
+          number.value = num;
+          ConfigIO.set(path, num);
+          onConfigChanged();
+          updateDirtyDot();
+        };
+        range.addEventListener("input", e => sync(e.target.value));
+        number.addEventListener("change", e => sync(e.target.value));
+        // Sync when number input changes (for typing)
+        number.addEventListener("input", e => sync(e.target.value));
+      }
+      
+      g.appendChild(row);
+    }
+    groupsHost.appendChild(g);
+  }
+
+  // profiles
+  const sel = wrap.querySelector("#cfg-profile-list");
+  const name = wrap.querySelector("#cfg-name");
+  const refreshProfiles = () => {
+    sel.innerHTML = "";
+    const list = ConfigIO.loadProfiles();
+    list.forEach((p,i) => {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = p.name || `preset-${i+1}`;
+      sel.appendChild(opt);
+    });
+  };
+  refreshProfiles();
+
+  wrap.querySelector("#cfg-load").onclick = () => {
+    const idx = Number(sel.value); if (isNaN(idx)) return;
+    const list = ConfigIO.loadProfiles(); const p = list[idx];
+    if (p) { ConfigIO.apply(p.snapshot); name.value = p.name || ""; updateDirtyDot(); }
+  };
+  wrap.querySelector("#cfg-save").onclick = () => {
+    const snap = ConfigIO.snapshot();
+    const list = ConfigIO.loadProfiles();
+    const title = name.value?.trim() || `preset-${list.length+1}`;
+    // if same name exists, replace
+    const existing = list.findIndex(p => p.name === title);
+    if (existing >= 0) list[existing] = { name: title, snapshot: snap };
+    else list.push({ name: title, snapshot: snap });
+    ConfigIO.saveProfiles(list); refreshProfiles();
+    CURRENT_BASE_SNAPSHOT = snap; // saving makes current state the new base
+    updateDirtyDot();
+  };
+  wrap.querySelector("#cfg-del").onclick = () => {
+    const idx = Number(sel.value); if (isNaN(idx)) return;
+    const list = ConfigIO.loadProfiles(); if (!list[idx]) return;
+    list.splice(idx,1); ConfigIO.saveProfiles(list); refreshProfiles();
+  };
+  wrap.querySelector("#cfg-exp").onclick = () => {
+    const snap = ConfigIO.snapshot();
+    const blob = new Blob([JSON.stringify(snap, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement("a"), { href:url, download:"slime-config.json" });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+  wrap.querySelector("#cfg-imp").onclick = async () => {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "application/json";
+    input.onchange = async () => {
+      const file = input.files?.[0]; if (!file) return;
+      const text = await file.text();
+      try { const snap = JSON.parse(text); ConfigIO.apply(snap); updateDirtyDot(); }
+      catch { alert("Invalid JSON"); }
+    };
+    input.click();
+  };
+
+  // Wire up Revert and Defaults buttons
+  const revertBtn = wrap.querySelector("#cfg-revert");
+  if (revertBtn) {
+    revertBtn.onclick = () => {
+      // Ensure snapshots are initialized
+      if (!BOOT_SNAPSHOT) initSnapshotsOnce();
+      if (!CURRENT_BASE_SNAPSHOT) CURRENT_BASE_SNAPSHOT = BOOT_SNAPSHOT;
+      if (CURRENT_BASE_SNAPSHOT) {
+        ConfigIO.apply(CURRENT_BASE_SNAPSHOT);
+      }
+    };
+  }
+
+  const defaultBtn = wrap.querySelector("#cfg-default");
+  if (defaultBtn) {
+    defaultBtn.onclick = () => {
+      // Ensure snapshots are initialized
+      if (!BOOT_SNAPSHOT) initSnapshotsOnce();
+      if (BOOT_SNAPSHOT) {
+        ConfigIO.apply(BOOT_SNAPSHOT);
+      }
+    };
+  }
+
+  // Wire up Collapse All button
+  const collapseBtn = wrap.querySelector("#cfg-collapse");
+  if (collapseBtn) {
+    collapseBtn.onclick = () => {
+      const groupsHost = wrap.querySelector("#cfg-groups");
+      if (groupsHost) {
+        groupsHost.querySelectorAll("details").forEach(details => {
+          details.open = false;
+        });
+      }
+    };
+  }
+
+  wrap.querySelector("#cfg-close").onclick = () => togglePanel(false);
+}
+
+function togglePanel(force){
+  const el = document.getElementById("config-panel") || buildConfigPanel();
+  const node = document.getElementById("config-panel");
+  if (!node) return;
+  panelOpen = force ?? !panelOpen;
+  node.style.display = panelOpen ? "block" : "none";
+}
+
+// hotkeys
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP") { togglePanel(); e.preventDefault(); }
+  // quick-load profiles 1..9
+  if (/Digit[1-9]/.test(e.code)) {
+    const idx = Number(e.code.slice(-1)) - 1;
+    const list = ConfigIO.loadProfiles();
+    if (list[idx]) { ConfigIO.apply(list[idx].snapshot); }
+  }
+  // Ctrl/Cmd+U: revert
+  if (e.code === "KeyU" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (CURRENT_BASE_SNAPSHOT) ConfigIO.apply(CURRENT_BASE_SNAPSHOT);
+  }
+});
+
+
