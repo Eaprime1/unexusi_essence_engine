@@ -682,7 +682,7 @@ function buildConfigPanel(){
       <button id="cfg-imp">Import</button>
     </div>
     <div id="cfg-groups"></div>
-    <div style="opacity:.6; margin-top:10px;">[P] toggle · [1–9] quick load</div>
+    <div style="opacity:.6; margin-top:10px;">[O] toggle · [1–9] quick load</div>
   `;
   document.body.appendChild(wrap);
 
@@ -876,11 +876,16 @@ function togglePanel(force){
   if (!node) return;
   panelOpen = force ?? !panelOpen;
   node.style.display = panelOpen ? "block" : "none";
+  
+  // Trigger canvas resize when panel visibility changes
+  if (typeof window.resizeCanvas === 'function') {
+    window.resizeCanvas();
+  }
 }
 
 // hotkeys
 window.addEventListener("keydown", (e) => {
-  if (e.code === "KeyP") { togglePanel(); e.preventDefault(); }
+  if (e.code === "KeyO") { togglePanel(); e.preventDefault(); }
   // quick-load profiles 1..9
   if (/Digit[1-9]/.test(e.code)) {
     const idx = Number(e.code.slice(-1)) - 1;

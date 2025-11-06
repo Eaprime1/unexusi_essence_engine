@@ -2,6 +2,7 @@
 // Controls: [WASD/Arrows]=move (Agent 1 when MANUAL) | [A]=auto toggle | [S]=toggle extended sensing
 // [G]=scent gradient viz | [P]=fertility viz | [M]=mitosis toggle | [Space]=pause [R]=reset [C]=+5χ all 
 // [T]=trail on/off [X]=clear trail [F]=diffusion on/off | [1-4]=toggle individual agents | [V]=toggle all | [L]=training UI
+// [H]=agent dashboard | [U]=cycle HUD (full/minimal/hidden)
 
 import { CONFIG } from './config.js';
 import { HeuristicController, LinearPolicyController } from './controllers.js';
@@ -18,14 +19,60 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
   
     // ---------- DPR-aware sizing ----------
     let dpr = 1;
+    let canvasWidth = innerWidth;
+    let canvasHeight = innerHeight;
+    
+    // Initialize UI state variables before getAvailableSize uses them
+    let showAgentDashboard = false; // Toggle for agent dashboard overlay
+    
+    const getAvailableSize = () => {
+      const configPanel = document.getElementById("config-panel");
+      const panelOpen = configPanel && configPanel.style.display !== "none";
+      const panelWidth = panelOpen ? 360 : 0; // Config panel width
+      // Canvas now fills full viewport, HUD/Dashboard are drawn on top
+      
+      return {
+        width: innerWidth - panelWidth,
+        height: innerHeight,
+        panelWidth: panelWidth,
+        topReserve: 0
+      };
+    };
+    
     const resize = () => {
       dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-      canvas.width  = Math.floor(innerWidth  * dpr);
-      canvas.height = Math.floor(innerHeight * dpr);
+      const avail = getAvailableSize();
+      canvasWidth = avail.width;
+      canvasHeight = avail.height;
+      
+      canvas.width  = Math.floor(canvasWidth  * dpr);
+      canvas.height = Math.floor(canvasHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      Trail.resize();
+      
+      // Update canvas CSS to position it correctly - full viewport
+      canvas.style.width = `${canvasWidth}px`;
+      canvas.style.height = `${canvasHeight}px`;
+      canvas.style.position = "fixed";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      
+      // Only resize Trail if it's been initialized
+      // Trail is defined later in the code, so we check if it exists
+      if (typeof Trail !== 'undefined' && Trail && Trail.resize) {
+        Trail.resize();
+      }
+      
+      // Recreate FertilityField if plant ecology is enabled
+      if (CONFIG.plantEcology.enabled && typeof FertilityGrid !== 'undefined') {
+        FertilityField = new FertilityGrid(canvasWidth, canvasHeight);
+      }
     };
     window.addEventListener("resize", resize, { passive: true });
+    
+    // Expose resize function globally so config panel can trigger it
+    window.resizeCanvas = resize;
+    
+    // Note: Initial resize will be called after Trail is defined
   
     // Config is now imported from config.js
   
@@ -33,7 +80,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
     const held = new Set();
     let showScentGradient = true; // Toggle for scent gradient visualization
     let showFertility = false; // Toggle for fertility grid visualization
-    let showAgentDashboard = false; // Toggle for agent dashboard overlay
+    let hudDisplayMode = 'full'; // 'full', 'minimal', or 'hidden'
     
     window.addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
@@ -66,12 +113,37 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       else if (e.code === "KeyH") {
         showAgentDashboard = !showAgentDashboard;
       } // Toggle agent dashboard overlay
+      else if (e.code === "KeyU") {
+        // Cycle through HUD display modes: full -> minimal -> hidden -> full
+        if (hudDisplayMode === 'full') hudDisplayMode = 'minimal';
+        else if (hudDisplayMode === 'minimal') hudDisplayMode = 'hidden';
+        else hudDisplayMode = 'full';
+        console.log(`📊 HUD mode: ${hudDisplayMode.toUpperCase()}`);
+      } // Toggle HUD display mode
       // Toggle individual agents visibility
       else if (e.code === "Digit1") { if (World.bundles[0]) World.bundles[0].visible = !World.bundles[0].visible; }
       else if (e.code === "Digit2") { if (World.bundles[1]) World.bundles[1].visible = !World.bundles[1].visible; }
       else if (e.code === "Digit3") { if (World.bundles[2]) World.bundles[2].visible = !World.bundles[2].visible; }
       else if (e.code === "Digit4") { if (World.bundles[3]) World.bundles[3].visible = !World.bundles[3].visible; }
       else if (e.code === "KeyV") { World.bundles.forEach(b => b.visible = !b.visible); } // Toggle all
+      else if (e.code === "KeyE") {
+        // Take screenshot
+        e.preventDefault();
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+          const filename = `slime-screenshot-${timestamp}.png`;
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log(`📸 Screenshot saved: ${filename}`);
+        }, 'image/png');
+      }
     });
     window.addEventListener("keyup", (e) => held.delete(e.key.toLowerCase()));
   
@@ -251,7 +323,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         const a = getBundleById(L.aId);
         const b = getBundleById(L.bId);
         if (!a || !b) continue;
-        const depBase = CONFIG.depositPerSec * 0.1 * L.strength * dt;
+        const depBase = CONFIG.depositPerSec * 0.01 * L.strength * dt; // Reduced from 0.1 to 0.01
         for (let s = 0; s <= samples; s++) {
           const t = s / samples;
           const x = a.x + (b.x - a.x) * t;
@@ -280,8 +352,8 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
   
       resize() {
         this.cell = CONFIG.trailCell;
-        this.w = Math.max(1, Math.floor(innerWidth  / this.cell));
-        this.h = Math.max(1, Math.floor(innerHeight / this.cell));
+        this.w = Math.max(1, Math.floor(canvasWidth  / this.cell));
+        this.h = Math.max(1, Math.floor(canvasHeight / this.cell));
         const len = this.w * this.h;
         this.buf = new Float32Array(len);
         this.tmp = new Float32Array(len);
@@ -404,13 +476,18 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         ctx.restore();
       }
     };
-    resize();
+    
+    // Call resize after Trail is defined (done later in code)
+    // resize(); // Moved to after Trail initialization
     
     // ---------- Fertility Grid (Plant Ecology) ----------
     let FertilityField = null;
     if (CONFIG.plantEcology.enabled) {
-      FertilityField = new FertilityGrid(innerWidth, innerHeight);
+      FertilityField = new FertilityGrid(canvasWidth, canvasHeight);
     }
+    
+    // Now that Trail is defined, call initial resize
+    resize();
   
     // ---------- Entities ----------
     class Bundle {
@@ -518,9 +595,9 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         const wallStrength = CONFIG.aiWallAvoidStrength;
         
         const dLeft = this.x;
-        const dRight = innerWidth - this.x;
+        const dRight = canvasWidth - this.x;
         const dTop = this.y;
-        const dBottom = innerHeight - this.y;
+        const dBottom = canvasHeight - this.y;
         
         // Apply repulsion from each wall independently (creates diagonal escape in corners)
         if (dLeft < wallMargin) {
@@ -677,8 +754,8 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
   
           // Stay inside viewport
           const half = this.size / 2;
-          this.x = clamp(this.x, half, innerWidth - half);
-          this.y = clamp(this.y, half, innerHeight - half);
+          this.x = clamp(this.x, half, canvasWidth - half);
+          this.y = clamp(this.y, half, canvasHeight - half);
   
           // Deposit trail when moving
           if (movedDist > 0) {
@@ -944,8 +1021,8 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
         // Stay inside viewport
         const half = this.size / 2;
-        this.x = clamp(this.x, half, innerWidth - half);
-        this.y = clamp(this.y, half, innerHeight - half);
+        this.x = clamp(this.x, half, canvasWidth - half);
+        this.y = clamp(this.y, half, canvasHeight - half);
 
         // Apply sensing action
         this.extendedSensing = action.senseFrac > 0.5;
@@ -1097,8 +1174,8 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
         const offset = CONFIG.mitosis.spawnOffset;
         const half = this.size / 2;
-        const childX = clamp(this.x + Math.cos(angle) * offset, half, innerWidth - half);
-        const childY = clamp(this.y + Math.sin(angle) * offset, half, innerHeight - half);
+        const childX = clamp(this.x + Math.cos(angle) * offset, half, canvasWidth - half);
+        const childY = clamp(this.y + Math.sin(angle) * offset, half, canvasHeight - half);
 
         const child = this.spawnChild(
           childX,
@@ -1126,8 +1203,8 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
         const jitter = CONFIG.mitosis.buddingOffset ?? 20;
         const half = this.size / 2;
-        const childX = clamp(this.x + randomRange(-jitter, jitter), half, innerWidth - half);
-        const childY = clamp(this.y + randomRange(-jitter, jitter), half, innerHeight - half);
+        const childX = clamp(this.x + randomRange(-jitter, jitter), half, canvasWidth - half);
+        const childY = clamp(this.y + randomRange(-jitter, jitter), half, canvasHeight - half);
 
         const angle = CONFIG.mitosis.inheritHeading
           ? this.heading
@@ -1262,7 +1339,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       respawn() {
         // Use fertility-based spawning if plant ecology enabled
         if (CONFIG.plantEcology.enabled && FertilityField) {
-          const location = getResourceSpawnLocation(FertilityField, innerWidth, innerHeight);
+          const location = getResourceSpawnLocation(FertilityField, canvasWidth, canvasHeight);
           this.x = location.x;
           this.y = location.y;
         } else {
@@ -1347,7 +1424,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         this.totalBirths = 0;
         this.lineageLinks = [];
         
-        const cx = innerWidth / 2, cy = innerHeight / 2;
+        const cx = canvasWidth / 2, cy = canvasHeight / 2;
         this.bundles = [
           new Bundle(cx - 100, cy - 80, CONFIG.bundleSize, CONFIG.startChi, 1),
           new Bundle(cx + 100, cy + 80, CONFIG.bundleSize, CONFIG.startChi, 2),
@@ -1488,7 +1565,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
             this.resources.length < this.carryingCapacity) {
           const spawnChance = CONFIG.resourceRecoveryChance * dt;
           if (Math.random() < spawnChance) {
-            const cx = innerWidth / 2, cy = innerHeight / 2;
+            const cx = canvasWidth / 2, cy = canvasHeight / 2;
             const res = new Resource(cx, cy, CONFIG.resourceRadius);
             res.respawn();
             this.resources.push(res);
@@ -1575,25 +1652,15 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
     // ---------- HUD ----------
     function drawHUD() {
-      if (!CONFIG.hud.show) return;
+      if (!CONFIG.hud.show || hudDisplayMode === 'hidden') return;
       ctx.save();
-      ctx.font = "12px ui-mono, monospace";
-      ctx.textAlign = "left";
-
-      const lineHeight = 14;
-      const sectionSpacing = 6;
-      const writeHudLines = (section, startY) => {
-        const lines = section.lines.filter(Boolean);
-        if (!lines.length) return startY;
-        let y = startY;
-        ctx.fillStyle = section.color;
-        lines.forEach(line => {
-          ctx.fillText(line, 10, y);
-          y += lineHeight;
-        });
-        return y + sectionSpacing;
-      };
-
+      
+      const baselineY = 10; // Common baseline for HUD and Dashboard
+      const padding = 12;
+      const lineHeight = 15; // Slightly increased for better readability
+      const sectionSpacing = 8; // Increased spacing
+      
+      // Build HUD content first to calculate dimensions
       const mode = CONFIG.autoMove ? "AUTO" : "MANUAL";
       const diffState = CONFIG.enableDiffusion ? "ON" : "OFF";
       const learningModeDisplay = learningMode === 'train' ? "TRAINING" : "PLAY";
@@ -1640,78 +1707,141 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
       const hudSections = [];
 
-      hudSections.push({
-        color: "#88ffff",
-        lines: [
-          `📊 agents ${aliveCount}/${totalAgents}`,
-          `${"avg χ".padEnd(12)}${avgChi.toFixed(1)}   ${"births".padEnd(12)}${World.totalBirths}`,
-          `${"avg F/H".padEnd(12)}${Math.round(avgFrustration * 100)}% / ${Math.round(avgHunger * 100)}%`
-        ]
-      });
-
-      const generalLines = [
-        `${"mode".padEnd(12)}${mode.padEnd(8)}${"learning".padEnd(12)}${learningModeDisplay.padEnd(9)}`,
-        `${"tick".padEnd(12)}${globalTick.toString().padEnd(8)}${"χ earned".padEnd(12)}${World.collected.toString().padEnd(8)}`,
-        `${"diffusion".padEnd(12)}${diffState.padEnd(4)}${"mitosis".padEnd(12)}${mitosisStatus.padEnd(4)}`,
-        `${"🌿 resources".padEnd(14)}${resourceSummary}`
-      ];
-      if (resourceDetails) {
-        generalLines.push(`${"".padEnd(14)}${resourceDetails}`);
-      }
-
-      hudSections.push({
-        color: "#00ff88",
-        lines: generalLines
-      });
-
-      if (CONFIG.adaptiveReward?.enabled) {
-        const nextReward = calculateAdaptiveReward(World.avgFindTime);
+      // Minimal mode: only show agent count and basic info
+      if (hudDisplayMode === 'minimal') {
         hudSections.push({
-          color: "#ffaa00",
+          color: "#88ffff",
           lines: [
-            `${"avg find".padEnd(12)}${World.avgFindTime.toFixed(2)}s`,
-            `${"next χ".padEnd(12)}≈${nextReward.toFixed(1)}   ${"avg given".padEnd(12)}${World.rewardStats.avgRewardGiven.toFixed(1)}χ`
+            `📊 ${aliveCount}/${totalAgents}  χ:${avgChi.toFixed(1)}  births:${World.totalBirths}  tick:${globalTick}  [U]=HUD`
           ]
+        });
+      } else {
+        // Full mode: show all info
+        hudSections.push({
+          color: "#88ffff",
+          lines: [
+            `📊 agents ${aliveCount}/${totalAgents}`,
+            `${"avg χ".padEnd(12)}${avgChi.toFixed(1)}   ${"births".padEnd(12)}${World.totalBirths}`,
+            `${"avg F/H".padEnd(12)}${Math.round(avgFrustration * 100)}% / ${Math.round(avgHunger * 100)}%`
+          ]
+        });
+
+        const generalLines = [
+          `${"mode".padEnd(12)}${mode.padEnd(8)}${"learning".padEnd(12)}${learningModeDisplay.padEnd(9)}`,
+          `${"tick".padEnd(12)}${globalTick.toString().padEnd(8)}${"χ earned".padEnd(12)}${World.collected.toString().padEnd(8)}`,
+          `${"diffusion".padEnd(12)}${diffState.padEnd(4)}${"mitosis".padEnd(12)}${mitosisStatus.padEnd(4)}`,
+          `${"🌿 resources".padEnd(14)}${resourceSummary}`
+        ];
+        if (resourceDetails) {
+          generalLines.push(`${"".padEnd(14)}${resourceDetails}`);
+        }
+
+        hudSections.push({
+          color: "#00ff88",
+          lines: generalLines
+        });
+
+        if (CONFIG.adaptiveReward?.enabled) {
+          const nextReward = calculateAdaptiveReward(World.avgFindTime);
+          hudSections.push({
+            color: "#ffaa00",
+            lines: [
+              `${"avg find".padEnd(12)}${World.avgFindTime.toFixed(2)}s`,
+              `${"next χ".padEnd(12)}≈${nextReward.toFixed(1)}   ${"avg given".padEnd(12)}${World.rewardStats.avgRewardGiven.toFixed(1)}χ`
+            ]
+          });
+        }
+
+        const controlsLines = [
+          `[Space] pause   [R] reset   [C] +5χ`,
+          `[A] auto   [S] extSense   [G] scent(${scentStatus})   [P] fertility(${fertilityStatus})`,
+          `[M] mitosis(${mitosisStatus})   [T] trail   [X] clear   [F] diffuse   [L] train`,
+          `[H] agents(${showAgentDashboard ? "ON" : "OFF"})   [1-4] agent vis   [V] toggle all   [U] HUD`
+        ];
+
+        hudSections.push({
+          color: "#00ff88",
+          lines: controlsLines
         });
       }
 
-      const controlsLines = [
-        `[WASD] move   [Space] pause   [R] reset   [C] +5χ`,
-        `[A] auto   [S] extSense   [G] scent(${scentStatus})   [P] fertility(${fertilityStatus})`,
-        `[M] mitosis(${mitosisStatus})   [T] trail   [X] clear   [F] diffuse   [L] train`,
-        `[H] agents(${showAgentDashboard ? "ON" : "OFF"})   [1-4] agent vis   [V] toggle all`
-      ];
-
-      hudSections.push({
-        color: "#00ff88",
-        lines: controlsLines
+      // Calculate HUD height
+      let totalLines = 0;
+      hudSections.forEach(section => {
+        totalLines += section.lines.length;
       });
+      const hudHeight = padding * 2 + totalLines * lineHeight + (hudSections.length - 1) * sectionSpacing;
+      const hudWidth = hudDisplayMode === 'minimal' ? 480 : 500; // Smaller width for minimal mode
 
-      let currentY = 28;
+      // Draw HUD background with higher opacity
+      ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.fillRect(baselineY, baselineY, hudWidth, hudHeight);
+      ctx.strokeStyle = "rgba(0, 255, 136, 0.6)";
+      ctx.strokeRect(baselineY, baselineY, hudWidth, hudHeight);
+
+      // Draw HUD text with improved readability
+      ctx.font = "13px ui-mono, monospace"; // Slightly larger font
+      ctx.textAlign = "left";
+      
+      const writeHudLines = (section, startY) => {
+        const lines = section.lines.filter(Boolean);
+        if (!lines.length) return startY;
+        let y = startY;
+        ctx.fillStyle = section.color;
+        lines.forEach(line => {
+          // Add text shadow for better readability
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 2;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillText(line, baselineY + padding, y);
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+          y += lineHeight;
+        });
+        return y + sectionSpacing;
+      };
+
+      let currentY = baselineY + padding + lineHeight;
       hudSections.forEach(section => {
         currentY = writeHudLines(section, currentY);
       });
 
       if (showAgentDashboard) {
-        drawAgentDashboardOverlay();
+        drawAgentDashboardOverlay(baselineY);
       }
 
       ctx.restore();
     }
 
-    function drawAgentDashboardOverlay() {
+    function drawAgentDashboardOverlay(baselineY = 10) {
       const agents = World.bundles;
       if (!agents.length) return;
 
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
       const padding = 12;
-      const columnWidth = 240;
-      const rowHeight = 16;
-      const headerHeight = 20;
-
+      const rowHeight = 17; // Slightly increased for better readability
+      const headerHeight = 65; // Updated to match actual header layout
+      const rightMargin = 10; // Margin from right edge
+      
+      // Fixed column widths for aligned table layout
+      ctx.font = "12px ui-mono, monospace";
+      const colWidths = {
+        vis: 28,      // "vis/alive" - icons
+        id: 36,       // "ID"
+        chi: 62,      // "χ" with value
+        cr: 62,       // "cr" with value
+        f: 48,        // "F" with %
+        h: 48,        // "H" with %
+        sense: 60,    // "sense" with value
+        controller: 80 // "controller"
+      };
+      
+      const singleColumnWidth = Object.values(colWidths).reduce((sum, w) => sum + w, 0) + 8; // +8 for spacing
       const maxRows = Math.max(1, Math.floor((viewHeight - padding * 2 - headerHeight) / rowHeight));
-      const maxColumns = Math.max(1, Math.floor((viewWidth - padding * 2) / columnWidth));
+      const maxColumns = Math.max(1, Math.floor((viewWidth - padding * 2 - rightMargin) / singleColumnWidth));
 
       let columns = 1;
       let rowsPerColumn = Math.ceil(agents.length / columns);
@@ -1723,30 +1853,79 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       columns = Math.max(1, Math.min(columns, maxColumns, agents.length || 1));
       rowsPerColumn = Math.max(1, Math.ceil(agents.length / columns));
 
-      const panelWidth = Math.min(viewWidth - 20, columns * columnWidth + padding * 2);
+      // Calculate panel width - ensure it fits all content
+      const calculatedWidth = columns * singleColumnWidth + padding * 2;
+      const maxWidth = viewWidth - rightMargin - padding; // Leave margin from right edge
+      const panelWidth = Math.min(maxWidth, calculatedWidth);
       const panelHeight = Math.min(viewHeight - 20, headerHeight + rowsPerColumn * rowHeight + padding * 2);
-      const panelX = Math.max(10, viewWidth - panelWidth - 10);
-      const panelY = 10;
+      const panelX = Math.max(padding, viewWidth - panelWidth - rightMargin);
+      const panelY = baselineY; // Aligned to same baseline as HUD
 
       ctx.save();
-      ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+      
+      // Draw dashboard background with higher opacity
+      ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
       ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
       ctx.strokeStyle = "rgba(0, 255, 136, 0.6)";
       ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
 
-      ctx.font = "12px ui-mono, monospace";
+      // Draw header text with shadow for readability
+      const titleY = panelY + padding + 15; // Title baseline
+      const headerRowY = titleY + 18; // Header row below title with spacing
+      
+      ctx.font = "13px ui-mono, monospace";
       ctx.fillStyle = "#00ff88";
-      ctx.fillText(`Agent dashboard (${agents.length})`, panelX + padding, panelY + padding);
-      ctx.font = "11px ui-mono, monospace";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+      ctx.shadowBlur = 2;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+      ctx.fillText(`Agent dashboard (${agents.length})`, panelX + padding, titleY);
+      
+      // Draw header row with fixed column alignment
+      ctx.font = "12px ui-mono, monospace";
       ctx.fillStyle = "#d0ffd8";
-      ctx.fillText("vis/alive  ID  χ     cr    F    H    sense  controller", panelX + padding, panelY + padding + 12);
+      
+      // Add shadow to header for readability
+      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+      ctx.shadowBlur = 1;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+      
+      const drawHeaderRow = (startX, startY) => {
+        let x = startX;
+        ctx.fillText("vis", x, startY);
+        x += colWidths.vis;
+        ctx.fillText("ID", x, startY);
+        x += colWidths.id;
+        ctx.fillText("chi", x, startY);
+        x += colWidths.chi;
+        ctx.fillText("credits", x, startY);
+        x += colWidths.cr;
+        ctx.fillText("Frust", x, startY);
+        x += colWidths.f;
+        ctx.fillText("Hunger", x, startY);
+        x += colWidths.h;
+        ctx.fillText("sense", x, startY);
+        x += colWidths.sense;
+        ctx.fillText("control", x, startY);
+      };
+      
+      // Draw header for each column
+      for (let col = 0; col < columns; col++) {
+        const headerX = panelX + padding + col * singleColumnWidth;
+        drawHeaderRow(headerX, headerRowY);
+      }
+      
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
 
-      const contentY = panelY + padding + headerHeight;
+      const contentY = headerRowY + 20; // Start content below header with spacing
 
       agents.forEach((bundle, index) => {
         const column = Math.floor(index / rowsPerColumn);
         const row = index % rowsPerColumn;
-        const rowX = panelX + padding + column * columnWidth;
+        const rowBaseX = panelX + padding + column * singleColumnWidth;
         const rowY = contentY + row * rowHeight;
         if (rowY > panelY + panelHeight - padding) return;
 
@@ -1757,25 +1936,52 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         const chiStr = bundle.chi.toFixed(1).padStart(5, " ");
         const creditStr = Ledger.getCredits(bundle.id).toFixed(1).padStart(5, " ");
         const senseStr = Math.round(bundle.currentSensoryRange || 0).toString().padStart(3, " ");
-        let controllerLabel = getControllerBadge(bundle, index);
-        if (controllerLabel.length > 18) {
-          controllerLabel = `${controllerLabel.slice(0, 17)}…`;
-        }
+        const controllerLabel = getControllerBadge(bundle, index); // No truncation
         const idLabel = `A${bundle.id.toString().padStart(2, "0")}`;
 
         ctx.fillStyle = bundle.alive ? getAgentColor(bundle.id, true) : "#777777";
-        ctx.fillText(
-          `${visibilityIcon}${aliveIcon}   ${idLabel} χ${chiStr} cr${creditStr} F${frustrationPct}% H${hungerPct}% s${senseStr}  ${controllerLabel}`,
-          rowX,
-          rowY
-        );
+        
+        // Add text shadow for readability
+        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+        ctx.shadowBlur = 1;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        // Draw each field with fixed column alignment
+        let x = rowBaseX;
+        ctx.fillText(`${visibilityIcon}${aliveIcon}`, x, rowY);
+        x += colWidths.vis;
+        ctx.fillText(idLabel, x, rowY);
+        x += colWidths.id;
+        ctx.fillText(`χ${chiStr}`, x, rowY);
+        x += colWidths.chi;
+        ctx.fillText(`cr${creditStr}`, x, rowY);
+        x += colWidths.cr;
+        ctx.fillText(`F${frustrationPct}%`, x, rowY);
+        x += colWidths.f;
+        ctx.fillText(`H${hungerPct}%`, x, rowY);
+        x += colWidths.h;
+        ctx.fillText(`s${senseStr}`, x, rowY);
+        x += colWidths.sense;
+        ctx.fillText(controllerLabel, x, rowY);
+        
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
       });
 
       const totalCapacity = rowsPerColumn * columns;
       if (totalCapacity < agents.length) {
-        ctx.font = "10px ui-mono, monospace";
+        ctx.font = "11px ui-mono, monospace";
         ctx.fillStyle = "#ffaa88";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+        ctx.shadowBlur = 1;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
         ctx.fillText(`showing ${totalCapacity} of ${agents.length} agents`, panelX + padding, panelY + panelHeight - padding);
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
       }
 
       ctx.restore();
@@ -1890,10 +2096,10 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
                 
                 // Keep agents in bounds after collision
                 const half = a.size / 2;
-                a.x = clamp(a.x, half, innerWidth - half);
-                a.y = clamp(a.y, half, innerHeight - half);
-                b.x = clamp(b.x, half, innerWidth - half);
-                b.y = clamp(b.y, half, innerHeight - half);
+                a.x = clamp(a.x, half, canvasWidth - half);
+                a.y = clamp(a.y, half, canvasHeight - half);
+                b.x = clamp(b.x, half, canvasWidth - half);
+                b.y = clamp(b.y, half, canvasHeight - half);
               }
             }
           }
