@@ -40,6 +40,10 @@ export const SignalField = {
   lastCtx: null,
   canvasWidth: 0,
   canvasHeight: 0,
+  _totals: [],
+  _sumSquares: [],
+  _stats: null,
+  _statsDirty: true,
 
   resize(width, height, ctx) {
     this.canvasWidth = width;
@@ -55,12 +59,17 @@ export const SignalField = {
     this.buffers = new Array(this.channelCount);
     this.tmp = new Array(this.channelCount);
     this.snapshot = new Array(this.channelCount);
+    this._totals = new Float64Array(this.channelCount);
+    this._sumSquares = new Float64Array(this.channelCount);
 
     for (let c = 0; c < this.channelCount; c++) {
       this.buffers[c] = new Float32Array(this.len);
       this.tmp[c] = new Float32Array(this.len);
       this.snapshot[c] = new Float32Array(this.len);
     }
+
+    this._statsDirty = true;
+    this._stats = null;
 
     const renderCtx = ctx || this.lastCtx;
     if (renderCtx) {
@@ -84,12 +93,18 @@ export const SignalField = {
       const idx = resolveChannelIndex(channel, this.channelCount);
       this.buffers[idx]?.fill(0);
       this.snapshot[idx]?.fill(0);
+      if (this._totals[idx] !== undefined) this._totals[idx] = 0;
+      if (this._sumSquares[idx] !== undefined) this._sumSquares[idx] = 0;
+      this._statsDirty = true;
       return;
     }
     for (let c = 0; c < this.channelCount; c++) {
       this.buffers[c]?.fill(0);
       this.snapshot[c]?.fill(0);
+      if (this._totals[c] !== undefined) this._totals[c] = 0;
+      if (this._sumSquares[c] !== undefined) this._sumSquares[c] = 0;
     }
+    this._statsDirty = true;
   },
 
   index(ix, iy) {
@@ -109,7 +124,17 @@ export const SignalField = {
     const i = this.index(ix, iy);
     const chan = resolveChannelIndex(channel, this.channelCount);
     const buf = this.buffers[chan];
-    buf[i] = clamp01(buf[i] + (amount || 0));
+    const prev = buf[i];
+    const next = clamp01(prev + (amount || 0));
+    if (next === prev) return;
+    buf[i] = next;
+    if (this._totals[chan] !== undefined) {
+      this._totals[chan] += next - prev;
+    }
+    if (this._sumSquares[chan] !== undefined) {
+      this._sumSquares[chan] += (next * next) - (prev * prev);
+    }
+    this._statsDirty = true;
   },
 
   sample(px, py, channel = 0) {
@@ -141,6 +166,8 @@ export const SignalField = {
     for (let c = 0; c < this.channelCount; c++) {
       const buf = this.buffers[c];
       const tmp = this.tmp[c];
+      let channelTotal = 0;
+      let channelSumSq = 0;
 
       for (let i = 0; i < buf.length; i++) {
         const v = buf[i];
@@ -163,13 +190,28 @@ export const SignalField = {
             const vLt = buf[y * w + xLt];
             const vRt = buf[y * w + xRt];
             const mean = (vUp + vDn + vLt + vRt) * 0.25;
-            tmp[i] = clamp01(vC + diffuseRate * (mean - vC));
+            const next = clamp01(vC + diffuseRate * (mean - vC));
+            tmp[i] = next;
+            channelTotal += next;
+            channelSumSq += next * next;
           }
         }
         this.buffers[c] = tmp;
         this.tmp[c] = buf;
+      } else {
+        for (let i = 0; i < buf.length; i++) {
+          const v = buf[i];
+          channelTotal += v;
+          channelSumSq += v * v;
+        }
       }
+
+      if (this._totals[c] !== undefined) this._totals[c] = channelTotal;
+      if (this._sumSquares[c] !== undefined) this._sumSquares[c] = channelSumSq;
     }
+
+    this._statsDirty = true;
+    this._computeStats();
   },
 
   draw(ctx) {
@@ -226,6 +268,71 @@ export const SignalField = {
       0, 0, this.w * this.cell, this.h * this.cell
     );
     ctx.restore();
+  },
+
+  _computeStats() {
+    if (!this.buffers.length) {
+      this._stats = {
+        channels: 0,
+        totalPower: [],
+        mean: [],
+        variance: [],
+        localVariance: [],
+        snr: [],
+        diversity: 0
+      };
+      this._statsDirty = false;
+      return;
+    }
+
+    const channelCount = this.channelCount;
+    const len = Math.max(1, this.len);
+    const totalPower = new Array(channelCount);
+    const mean = new Array(channelCount);
+    const variance = new Array(channelCount);
+    const snr = new Array(channelCount);
+
+    let diversity = 0;
+    for (let c = 0; c < channelCount; c++) {
+      const total = Number.isFinite(this._totals[c]) ? this._totals[c] : 0;
+      const sumSq = Number.isFinite(this._sumSquares[c]) ? this._sumSquares[c] : 0;
+      const m = total / len;
+      const varValue = Math.max(0, (sumSq / len) - (m * m));
+      totalPower[c] = total;
+      mean[c] = m;
+      variance[c] = varValue;
+      snr[c] = varValue > 1e-9 ? (m * m) / (varValue + 1e-9) : 0;
+      if (total > 1e-3) diversity += 1;
+    }
+
+    this._stats = {
+      channels: channelCount,
+      totalPower,
+      mean,
+      variance,
+      localVariance: variance,
+      snr,
+      diversity
+    };
+    this._statsDirty = false;
+  },
+
+  getStats() {
+    if (!CONFIG.signal.enabled || !this.buffers.length) {
+      return {
+        channels: this.channelCount,
+        totalPower: [],
+        mean: [],
+        variance: [],
+        localVariance: [],
+        snr: [],
+        diversity: 0
+      };
+    }
+    if (this._statsDirty) {
+      this._computeStats();
+    }
+    return this._stats;
   }
 };
 

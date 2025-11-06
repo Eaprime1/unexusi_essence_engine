@@ -13,6 +13,7 @@ import { CEMLearner, TrainingManager } from './learner.js';
 import { TrainingUI } from './trainingUI.js';
 import { visualizeScentGradient, visualizeScentHeatmap } from './scentGradient.js';
 import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResourceSpawnLocation, getSpawnPressureMultiplier } from './plantEcology.js';
+import { SignalResponseAnalytics } from './analysis/signalResponseAnalytics.js';
 
 (() => {
     const canvas = document.getElementById("view");
@@ -189,7 +190,26 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       const t = clamp((x - e0) / Math.max(1e-6, e1 - e0), 0, 1);
       return t * t * (3 - 2 * t);
     };
-    
+    const getSignalConfig = () => CONFIG.signal || {};
+    const getSignalSensitivity = (channel) => {
+      const cfg = getSignalConfig();
+      return cfg?.sensitivity?.[channel] ?? 1;
+    };
+    const getSignalDecayRate = (channel) => {
+      const cfg = getSignalConfig();
+      return clamp(cfg?.decay?.[channel] ?? 0.08, 0, 1);
+    };
+    const getSignalWeight = (channel) => {
+      const cfg = getSignalConfig();
+      const value = cfg?.channelWeights?.[channel];
+      return Number.isFinite(value) ? value : 1;
+    };
+    const getSignalActivationThreshold = () => {
+      const cfg = getSignalConfig();
+      const value = cfg?.activationThreshold;
+      return clamp(Number.isFinite(value) ? value : 0.05, 0, 1);
+    };
+
     // Generate color for agent based on ID (supports unlimited agents)
     const getAgentColor = (id, alive = true) => {
       // First 4 agents use classic colors for consistency
@@ -251,6 +271,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
   
     // ---------- Global time & economy ----------
     let globalTick = 0;
+    let lastSignalStatTick = 0;
     const Ledger = {
       credits: {},  // authorId -> total χ from reuse
       credit(authorId, amount) { this.credits[authorId] = (this.credits[authorId] || 0) + amount; },
@@ -662,6 +683,9 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         const distressBias = clamp(this.interpretation_bias?.distress ?? 0, 0, 1);
         const resourceBias = clamp(this.interpretation_bias?.resource ?? 0, 0, 1);
         const bondConflict = clamp(this.interpretation_bias?.bond ?? 0, 0, 1);
+        const resourceWeight = getSignalWeight('resource');
+        const distressWeight = getSignalWeight('distress');
+        const bondWeight = getSignalWeight('bond');
 
         // (1) Wall avoidance - repulsion from ALL nearby walls (handles corners!)
         const wallMargin = CONFIG.aiWallAvoidMargin;
@@ -749,9 +773,16 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         if (resourceBias > 0 && this.hunger >= CONFIG.hungerThresholdHigh) {
           const grad = signals.resource?.gradient;
           if (grad && (grad.dx !== 0 || grad.dy !== 0)) {
-            const pull = resourceBias * SIGNAL_RESOURCE_PULL_GAIN;
-            dx += grad.dx * pull;
-            dy += grad.dy * pull;
+            const pull = resourceBias * SIGNAL_RESOURCE_PULL_GAIN * resourceWeight;
+            if (pull > 0) {
+              dx += grad.dx * pull;
+              dy += grad.dy * pull;
+              SignalResponseAnalytics.logResponse('resource', globalTick, this.id, {
+                alignment: Math.min(1, grad.mag),
+                magnitude: pull,
+                mode: 'gradient-pull'
+              });
+            }
           }
         }
 
@@ -765,7 +796,18 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
             return Math.min(1, x * x); // quadratic ramp for decisiveness
           })(CONFIG.hungerThresholdHigh, h);
           const hungerDamp = 1 - CONFIG.link.hungerEscape * escape;
-          const conflictDamp = 1 - bondConflict * SIGNAL_BOND_CONFLICT_DAMP;
+          const conflictGain = SIGNAL_BOND_CONFLICT_DAMP * bondWeight;
+          const conflictDamp = 1 - bondConflict * conflictGain;
+          if (bondConflict > 1e-3 && conflictGain !== 0) {
+            const dampAmount = clamp(1 - conflictDamp, 0, 1);
+            if (dampAmount > 0) {
+              SignalResponseAnalytics.logResponse('bond', globalTick, this.id, {
+                alignment: dampAmount,
+                magnitude: dampAmount,
+                mode: 'bond-damp'
+              });
+            }
+          }
           const damp = Math.max(0, hungerDamp * conflictDamp);
           const myLinks = linksForAgent(this.id);
           for (const L of myLinks) {
@@ -791,8 +833,17 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         // Hunger amplifies exploration - hungry agents explore more desperately
         const hungerAmp = 1 + (CONFIG.hungerExplorationAmp - 1) * h;
         const bereaveMul = 1 + (this.bereavementBoostTicks > 0 ? (CONFIG.bondLoss?.onDeathExploreBoost ?? 0) : 0);
-        const distressMul = 1 + distressBias * SIGNAL_DISTRESS_NOISE_GAIN;
-        const noise = (CONFIG.aiExploreNoiseBase + CONFIG.aiExploreNoiseGain * f) * hungerAmp * bereaveMul * distressMul;
+        const distressGain = SIGNAL_DISTRESS_NOISE_GAIN * distressWeight;
+        const distressMul = 1 + distressBias * distressGain;
+        if (distressBias > 1e-3 && distressGain !== 0) {
+          SignalResponseAnalytics.logResponse('distress', globalTick, this.id, {
+            alignment: Math.min(1, distressBias * Math.abs(distressGain)),
+            magnitude: Math.max(0, distressMul - 1),
+            mode: 'exploration-noise'
+          });
+        }
+        const baseNoise = (CONFIG.aiExploreNoiseBase + CONFIG.aiExploreNoiseGain * f) * hungerAmp * bereaveMul;
+        const noise = baseNoise * distressMul;
         dx += (Math.random() - 0.5) * noise * (resourceVisible ? 1.0 : 1.8);
         dy += (Math.random() - 0.5) * noise * (resourceVisible ? 1.0 : 1.8);
   
@@ -969,10 +1020,19 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
 
         const context = {};
         const sampleRadius = Math.max(4, (SignalField.cell || CONFIG.signal.cell || 8));
+        const activationThreshold = getSignalActivationThreshold();
         for (const [name, index] of Object.entries(SIGNAL_CHANNELS)) {
-          const amp = clamp(SignalField.sample(this.x, this.y, index) || 0, 0, 1);
+          const rawAmp = clamp(SignalField.sample(this.x, this.y, index) || 0, 0, 1);
+          const sensitivity = getSignalSensitivity(name);
+          const amp = clamp(rawAmp * sensitivity, 0, 1);
           this.recordSignalSample(name, amp);
-          const gradient = this.computeSignalGradient(index, sampleRadius);
+          const gradient = this.computeSignalGradient(index, sampleRadius, sensitivity);
+          if (amp >= activationThreshold || (gradient?.mag ?? 0) >= activationThreshold) {
+            SignalResponseAnalytics.logStimulus(name, globalTick, this.id, {
+              amplitude: amp,
+              gradient: gradient?.mag ?? 0
+            });
+          }
           context[name] = { amplitude: amp, gradient };
         }
 
@@ -982,7 +1042,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
         return context;
       }
 
-      computeSignalGradient(channelIndex, radius) {
+      computeSignalGradient(channelIndex, radius, gain = 1) {
         if (!CONFIG.signal?.enabled || !SignalField || typeof SignalField.sample !== 'function') {
           return { dx: 0, dy: 0, mag: 0 };
         }
@@ -1001,36 +1061,41 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
           return { dx: 0, dy: 0, mag: 0 };
         }
         const norm = Math.min(1, mag);
-        return { dx: gradX / mag, dy: gradY / mag, mag: norm };
+        const scaledMag = Math.min(1, norm * Math.max(0, gain));
+        return { dx: gradX / mag, dy: gradY / mag, mag: scaledMag };
       }
 
       updateInterpretationBias(context = this.signalContext) {
-        const distressAmp = context?.distress?.amplitude ?? 0;
-        this.interpretation_bias.distress = clamp(distressAmp, 0, 1);
+        const applyBias = (channel, target) => {
+          const prev = clamp(this.interpretation_bias[channel] ?? 0, 0, 1);
+          const decay = getSignalDecayRate(channel);
+          const decayed = prev * (1 - decay);
+          const next = target >= prev ? target : Math.max(target, decayed);
+          this.interpretation_bias[channel] = clamp(next, 0, 1);
+        };
+
+        const distressAmp = clamp(context?.distress?.amplitude ?? 0, 0, 1);
+        applyBias('distress', distressAmp);
 
         const resourceGrad = context?.resource?.gradient;
-        if (resourceGrad) {
-          if (this.hunger >= CONFIG.hungerThresholdHigh) {
-            const hungerSpan = Math.max(1e-6, 1 - CONFIG.hungerThresholdHigh);
-            const hungerFactor = clamp((this.hunger - CONFIG.hungerThresholdHigh) / hungerSpan, 0, 1);
-            this.interpretation_bias.resource = clamp(resourceGrad.mag * hungerFactor, 0, 1);
-          } else {
-            this.interpretation_bias.resource = 0;
-          }
-        } else {
-          this.interpretation_bias.resource = 0;
+        let resourceTarget = 0;
+        if (resourceGrad && this.hunger >= CONFIG.hungerThresholdHigh) {
+          const hungerSpan = Math.max(1e-6, 1 - CONFIG.hungerThresholdHigh);
+          const hungerFactor = clamp((this.hunger - CONFIG.hungerThresholdHigh) / hungerSpan, 0, 1);
+          resourceTarget = clamp(resourceGrad.mag * hungerFactor, 0, 1);
         }
+        applyBias('resource', resourceTarget);
 
         const bondGrad = context?.bond?.gradient;
+        let bondTarget = 0;
         if (bondGrad) {
           const dirX = this._lastDirX;
           const dirY = this._lastDirY;
           const dot = dirX * bondGrad.dx + dirY * bondGrad.dy;
           const conflict = Math.max(0, -dot) * bondGrad.mag;
-          this.interpretation_bias.bond = clamp(conflict, 0, 1);
-        } else {
-          this.interpretation_bias.bond = 0;
+          bondTarget = clamp(conflict, 0, 1);
         }
+        applyBias('bond', bondTarget);
       }
 
       updateHunger(dt) {
@@ -1640,6 +1705,7 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
       reset() {
         Trail.clear();
         SignalField.clear();
+        SignalResponseAnalytics.reset();
         globalTick = 0;
         Ledger.credits = {};
         // Clear all links on reset
@@ -2530,9 +2596,27 @@ import { FertilityGrid, attemptSeedDispersal, attemptSpontaneousGrowth, getResou
           } catch (err) {
             console.error('Error in decay system:', err);
           }
-        }
+          }
 
           globalTick++;
+          if (globalTick - lastSignalStatTick >= 30) {
+            lastSignalStatTick = globalTick;
+            const fieldStats = typeof SignalField.getStats === 'function' ? SignalField.getStats() : null;
+            const responseSummary = SignalResponseAnalytics.getSummary();
+            if (window.trainingUI && typeof window.trainingUI.updateSignalStats === 'function') {
+              const snr = fieldStats?.snr ?? [];
+              const totalPower = fieldStats?.totalPower ?? [];
+              const channelCount = fieldStats?.channels ?? (SignalField.channelCount || 0);
+              window.trainingUI.updateSignalStats({
+                channelCount,
+                diversity: fieldStats?.diversity ?? 0,
+                snr,
+                totalPower,
+                coherence: responseSummary?.coherence ?? 0,
+                perChannel: responseSummary?.perChannel ?? {}
+              });
+            }
+          }
         } catch (err) {
           console.error('Critical error in main loop (tick ' + globalTick + '):', err);
           console.error('Stack trace:', err.stack);

@@ -304,6 +304,23 @@ export const CONFIG = {
     decayPerSec: 0.06,
     diffusePerSec: 0.12,
     channels: 3,
+    memoryLength: 12,
+    activationThreshold: 0.08,
+    sensitivity: {
+      resource: 1.0,
+      distress: 1.0,
+      bond: 1.0
+    },
+    decay: {
+      resource: 0.08,
+      distress: 0.1,
+      bond: 0.06
+    },
+    channelWeights: {
+      resource: 1.0,
+      distress: 1.0,
+      bond: 1.0
+    }
   },
 
   // === Bond Loss Signals ===
@@ -551,6 +568,17 @@ export const CONFIG_SCHEMA = {
     "signal.decayPerSec": { label: "Signal decay/sec", min: 0, max: 1, step: 0.01 },
     "signal.diffusePerSec": { label: "Signal diffuse/sec", min: 0, max: 1, step: 0.01 },
     "signal.channels": { label: "Signal channels", min: 1, max: 8, step: 1 },
+    "signal.memoryLength": { label: "Signal memory length", min: 3, max: 120, step: 1 },
+    "signal.activationThreshold": { label: "Signal activation threshold", min: 0, max: 1, step: 0.01 },
+    "signal.sensitivity.resource": { label: "Resource sensitivity gain", min: 0, max: 5, step: 0.01 },
+    "signal.sensitivity.distress": { label: "Distress sensitivity gain", min: 0, max: 5, step: 0.01 },
+    "signal.sensitivity.bond": { label: "Bond sensitivity gain", min: 0, max: 5, step: 0.01 },
+    "signal.decay.resource": { label: "Resource bias decay", min: 0, max: 1, step: 0.01 },
+    "signal.decay.distress": { label: "Distress bias decay", min: 0, max: 1, step: 0.01 },
+    "signal.decay.bond": { label: "Bond bias decay", min: 0, max: 1, step: 0.01 },
+    "signal.channelWeights.resource": { label: "Resource channel weight", min: 0, max: 5, step: 0.01 },
+    "signal.channelWeights.distress": { label: "Distress channel weight", min: 0, max: 5, step: 0.01 },
+    "signal.channelWeights.bond": { label: "Bond channel weight", min: 0, max: 5, step: 0.01 },
   },
   "Bond Loss": {
     "bondLoss.onDeathExploreBoost": { label: "On-death explore boost", min: 0, max: 10, step: 0.01 },
@@ -782,6 +810,17 @@ const CONFIG_HINTS = {
   "signal.decayPerSec": "Per-second decay applied to signal strengths.",
   "signal.diffusePerSec": "Per-second diffusion rate between neighboring signal cells.",
   "signal.channels": "Number of independent signal channels to allocate.",
+  "signal.memoryLength": "Samples retained per channel for running averages and bias smoothing.",
+  "signal.activationThreshold": "Minimum amplitude/gradient to register a stimulus for analytics.",
+  "signal.sensitivity.resource": "Gain applied to resource-channel sampling before interpretation.",
+  "signal.sensitivity.distress": "Gain applied to distress-channel sampling before interpretation.",
+  "signal.sensitivity.bond": "Gain applied to bond-channel sampling before interpretation.",
+  "signal.decay.resource": "Per-tick decay factor for resource interpretation bias.",
+  "signal.decay.distress": "Per-tick decay factor for distress interpretation bias.",
+  "signal.decay.bond": "Per-tick decay factor for bond interpretation bias.",
+  "signal.channelWeights.resource": "Weight applied when resource signals steer agents.",
+  "signal.channelWeights.distress": "Weight applied when distress signals amplify exploration noise.",
+  "signal.channelWeights.bond": "Weight applied when bond signals dampen cooperative guidance.",
 
   // Bond loss
   "bondLoss.onDeathExploreBoost": "Exploration boost after a bonded partner dies.",
