@@ -179,7 +179,7 @@ import { getRule110SpawnLocation, getRule110SpawnMultiplier, getRule110SpawnInfo
     };
     const SIGNAL_MEMORY_LENGTH = Math.max(3, CONFIG.signal?.memoryLength || 12);
     const SIGNAL_DISTRESS_NOISE_GAIN = 1.5;
-    const SIGNAL_RESOURCE_PULL_GAIN = 0.65;
+    const SIGNAL_RESOURCE_PULL_GAIN = 2.5;  // Increased from 0.65 - stronger signal following
     const SIGNAL_BOND_CONFLICT_DAMP = 0.7;
     const normalizeRewardSignal = (rewardChi) => {
       if (!Number.isFinite(rewardChi)) return 0;
@@ -772,10 +772,13 @@ import { getRule110SpawnLocation, getRule110SpawnMultiplier, getRule110SpawnInfo
           }
         }
 
-        if (resourceBias > 0 && this.hunger >= CONFIG.hungerThresholdHigh) {
+        // Resource signal pull - activate earlier (at low hunger threshold instead of high)
+        if (resourceBias > 0 && this.hunger >= CONFIG.hungerThresholdLow) {
           const grad = signals.resource?.gradient;
           if (grad && (grad.dx !== 0 || grad.dy !== 0)) {
-            const pull = resourceBias * SIGNAL_RESOURCE_PULL_GAIN * resourceWeight;
+            // Scale pull strength with hunger - stronger when more desperate
+            const hungerScale = smoothstep(CONFIG.hungerThresholdLow, 1.0, this.hunger);
+            const pull = resourceBias * SIGNAL_RESOURCE_PULL_GAIN * resourceWeight * (0.3 + hungerScale * 0.7);
             if (pull > 0) {
               dx += grad.dx * pull;
               dy += grad.dy * pull;
@@ -2707,10 +2710,9 @@ import { getRule110SpawnLocation, getRule110SpawnMultiplier, getRule110SpawnInfo
       drawHUD();
       
       // Draw Rule 110 overlay LAST (on top of everything including HUD)
-      if (CONFIG.tcResourceIntegration.enabled && CONFIG.tcResourceIntegration.showOverlay) {
-        if (typeof window !== 'undefined' && window.rule110Stepper) {
-          drawRule110Overlay(ctx, window.rule110Stepper, canvasWidth, canvasHeight);
-        }
+      // Note: showOverlay can be enabled independently of tcResourceIntegration for debugging
+      if (CONFIG.tcResourceIntegration?.showOverlay && window.rule110Stepper) {
+        drawRule110Overlay(ctx, window.rule110Stepper, canvasWidth, canvasHeight);
       }
   
       requestAnimationFrame(loop);

@@ -91,7 +91,8 @@ export class RewardTracker {
       explore: 0,
       provenance: 0,
       death: 0,
-      gradientClimb: 0,  // NEW: reward for getting closer to food
+      gradientClimb: 0,  // Reward for getting closer to food (scent gradient)
+      signalResponse: 0,  // Reward for moving toward signal field gradients
     };
     
     // State tracking
@@ -191,7 +192,7 @@ export class RewardTracker {
       this.rewards.provenance += r;
     }
     
-    // === 8. Gradient Climbing Reward (NEW!) ===
+    // === 8. Gradient Climbing Reward ===
     // Reward for getting closer to nearest food (only check periodically to reduce noise)
     if (CONFIG.scentGradient?.rewardEnabled && resources && resources.length > 0) {
       this.distanceCheckCounter++;
@@ -228,7 +229,39 @@ export class RewardTracker {
       }
     }
     
-    // === 9. Death Penalty ===
+    // === 9. Signal Field Response Reward ===
+    // Reward for moving toward resource signal gradients when hungry
+    if (CONFIG.signal?.enabled && CONFIG.learning.rewards.signalResponse && 
+        this.bundle.hunger > CONFIG.hungerThresholdLow) {
+      const signalContext = this.bundle.signalContext;
+      const resourceSignal = signalContext?.resource;
+      
+      if (resourceSignal && resourceSignal.gradient) {
+        const grad = resourceSignal.gradient;
+        const gradMag = Math.hypot(grad.dx || 0, grad.dy || 0);
+        
+        if (gradMag > 0.1) {  // Only if gradient is significant
+          // Calculate movement direction
+          const moveDx = this.bundle.x - this.lastPos.x;
+          const moveDy = this.bundle.y - this.lastPos.y;
+          const moveMag = Math.hypot(moveDx, moveDy);
+          
+          if (moveMag > 1) {  // Agent moved meaningfully
+            // Dot product: how aligned is movement with signal gradient?
+            const alignment = ((moveDx * grad.dx) + (moveDy * grad.dy)) / moveMag;
+            
+            // Reward for moving toward signal (alignment > 0)
+            if (alignment > 0) {
+              const r = CONFIG.learning.rewards.signalResponse * alignment * moveMag;
+              this.stepReward += r;
+              this.rewards.signalResponse += r;
+            }
+          }
+        }
+      }
+    }
+    
+    // === 10. Death Penalty ===
     if (!this.bundle.alive && this.lastChi > 0) {
       const r = CONFIG.learning.rewards.death;
       this.stepReward += r;

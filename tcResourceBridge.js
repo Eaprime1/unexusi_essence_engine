@@ -259,25 +259,32 @@ export function drawRule110Overlay(ctx, stepper, canvasWidth, canvasHeight) {
       }
     }
     
-    // Draw activity indicator
+    // Draw activity indicator bar and label
     const activity = getRule110Activity(stepper);
-    const barWidth = 200;
-    const barHeight = 8;
-    const barX = canvasWidth - barWidth - 10;
-    const barY = y + (position === 'top' ? height - barHeight - 5 : 5);
+    const labelText = `Rule 110: ${(activity * 100).toFixed(1)}% active`;
+    ctx.font = '11px monospace';
+    const labelWidth = ctx.measureText(labelText).width;
     
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    const barWidth = 180;
+    const barHeight = 10;
+    const padding = 10;
+    const labelHeight = 12;  // Space for text below
+    
+    // Position bar on right side, with room for label below
+    const barX = canvasWidth - barWidth - padding;
+    const barY = position === 'top' ? y + 5 : y + height - barHeight - labelHeight - 10;
+    
+    // Draw bar background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(barX, barY, barWidth, barHeight);
     
-    // Activity bar
+    // Draw activity fill
     ctx.fillStyle = `rgba(0, 255, 136, ${0.5 + activity * 0.5})`;
     ctx.fillRect(barX, barY, barWidth * activity, barHeight);
     
-    // Label
-    ctx.fillStyle = 'rgba(0, 255, 136, 0.8)';
-    ctx.font = '10px monospace';
-    ctx.fillText(`TC: ${(activity * 100).toFixed(1)}%`, barX + barWidth + 5, barY + barHeight);
+    // Draw label BELOW the bar (not overlapping with cells)
+    ctx.fillStyle = 'rgba(0, 255, 136, 0.9)';
+    ctx.fillText(labelText, barX, barY + barHeight + labelHeight);
     
     ctx.restore();
   } catch (err) {

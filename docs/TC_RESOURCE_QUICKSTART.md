@@ -2,16 +2,63 @@
 
 Link Rule 110 cellular automaton to resource spawning for a truly computational living environment!
 
+## ⚠️ Common Issues
+
+### Overlay Not Visible
+
+If you don't see the green Rule 110 overlay after setup:
+
+1. **showOverlay is disabled** - Set `CONFIG.tcResourceIntegration.showOverlay = true`
+2. **Stepper not registered** - Make sure `window.rule110Stepper` exists
+3. **Opacity too low** - Increase `CONFIG.tcResourceIntegration.overlayOpacity` to 0.5 or higher
+4. **TC not enabled** - Run `enableTC('rule110')` first
+
+### Overlay Disappears After World.reset()
+
+**IMPORTANT:** `World.reset()` clears TC storage! Always register the stepper **AFTER** calling `World.reset()`:
+
+```javascript
+// ❌ WRONG ORDER - overlay will disappear
+const { stepper } = registerRule110Stepper(...);
+window.rule110Stepper = stepper;
+World.reset();  // Clears TC storage!
+
+// ✅ CORRECT ORDER
+World.reset();  // Clear first
+const { stepper } = registerRule110Stepper(...);
+window.rule110Stepper = stepper;  // Then register
+```
+
+**Quick Fix** (run in console):
+```javascript
+(async () => {
+  const { CONFIG } = await import('./config.js');
+  CONFIG.tcResourceIntegration.showOverlay = true;
+  CONFIG.tcResourceIntegration.overlayOpacity = 0.5;  // Make it visible!
+  console.log('✅ Overlay should now be visible (if stepper is registered)');
+})();
+```
+
 ## 🚀 Quick Setup (Browser Console)
 
 Paste this **complete block** into your browser console (all at once):
 
 ```javascript
 (async () => {
-  // Step 1: Enable TC
+  // Step 1: Enable TC first
   enableTC('rule110');
   
-  // Step 2: Register Rule 110 stepper
+  // Step 2: Import CONFIG and enable TC-Resource integration
+  const { CONFIG } = await import('./config.js');
+  CONFIG.tcResourceIntegration.enabled = true;
+  CONFIG.tcResourceIntegration.mode = 'hybrid';  // 'spatial', 'activity', or 'hybrid'
+  CONFIG.tcResourceIntegration.showOverlay = true;  // Show Rule 110 visualization
+  CONFIG.tcResourceIntegration.overlayOpacity = 0.5;  // Good visibility
+  
+  // Step 3: Reset world (clears TC storage, so do this BEFORE registering stepper)
+  World.reset();
+  
+  // Step 4: Register Rule 110 stepper AFTER reset
   const { registerRule110Stepper } = await import('./tc/tcRule110.js');
   const { stepper } = registerRule110Stepper({
     width: 128,
@@ -21,24 +68,31 @@ Paste this **complete block** into your browser console (all at once):
   });
   window.rule110Stepper = stepper;
   
-  // Step 3: Import CONFIG and enable TC-Resource integration
-  const { CONFIG } = await import('./config.js');
-  CONFIG.tcResourceIntegration.enabled = true;
-  CONFIG.tcResourceIntegration.mode = 'hybrid';  // 'spatial', 'activity', or 'hybrid'
-  CONFIG.tcResourceIntegration.showOverlay = true;  // Show Rule 110 visualization
-  
-  // Step 4: Reset world to apply
-  World.reset();
-  
   console.log('✅ TC-Resource integration active!');
   console.log('Resources now spawn based on Rule 110 patterns');
-  console.log('Watch the green overlay at top of screen - that\'s Rule 110!');
+  console.log('🟩 Green bars at top = Rule 110 cells (they update each frame)');
+  console.log('📊 Activity bar shows % of active cells');
 })();
 ```
 
 **Note:** Paste the entire block including the `(async () => { ... })();` wrapper.
 
 ## 📊 What You'll See
+
+### Understanding the Overlay
+
+The green bars at the top of the screen **update in real-time** - this is **Rule 110 computing**!
+
+- **Vertical green bars** = active cells (value = 1) in the cellular automaton
+- **Black spaces** = inactive cells (value = 0)
+- **Bars "flying across"** = the CA evolving - each frame applies Rule 110 to all cells
+- **Activity bar (right)** = percentage of active cells + label below
+
+This is **not a bug** - you're watching Turing-complete computation unfold! The patterns you see are:
+- **Gliders** - structures that move across the screen
+- **Static blocks** - stable patterns
+- **Chaos** - rapidly changing regions
+- **Propagating structures** - patterns that expand or contract
 
 ### With `mode: 'spatial'`
 - Resources spawn at X coordinates matching **active cells** in Rule 110
@@ -59,10 +113,10 @@ Paste this **complete block** into your browser console (all at once):
 - Most dynamic and interesting!
 
 ### With `showOverlay: true`
-- Visual bar at top of screen shows Rule 110 state
-- Green cells = active (1s)
-- Activity percentage indicator
-- See the computation driving your environment!
+- **Top bar shows Rule 110 state** - green vertical bars = active cells (1s)
+- **Bars "fly" across screen** - this is the cellular automaton evolving in real-time!
+- **Activity bar (right side)** - shows % of active cells and overall system activity
+- Watch the computation driving your environment unfold!
 
 ## 🎮 Interactive Examples
 
@@ -70,7 +124,17 @@ Paste this **complete block** into your browser console (all at once):
 
 ```javascript
 (async () => {
-  // Glider initializer creates sparse patterns
+  // Setup config first
+  const { CONFIG } = await import('./config.js');
+  CONFIG.tcResourceIntegration.enabled = true;
+  CONFIG.tcResourceIntegration.mode = 'spatial';
+  CONFIG.tcResourceIntegration.showOverlay = true;
+  CONFIG.tcResourceIntegration.overlayOpacity = 0.5;
+  
+  // Reset BEFORE registering stepper (World.reset clears TC storage)
+  World.reset();
+  
+  // NOW register glider initializer - creates sparse patterns
   const { registerRule110Stepper } = await import('./tc/tcRule110.js');
   const { stepper } = registerRule110Stepper({
     width: 128,
@@ -79,12 +143,6 @@ Paste this **complete block** into your browser console (all at once):
   });
   window.rule110Stepper = stepper;
   
-  const { CONFIG } = await import('./config.js');
-  CONFIG.tcResourceIntegration.enabled = true;
-  CONFIG.tcResourceIntegration.mode = 'spatial';
-  CONFIG.tcResourceIntegration.showOverlay = true;
-  World.reset();
-  
   console.log('🌵 Sparse desert mode! Resources follow the glider.');
 })();
 ```
@@ -92,24 +150,24 @@ Paste this **complete block** into your browser console (all at once):
 ### Example 2: Dense Computational Garden
 
 ```javascript
-(async () => {
-  // Random initializer with high density
-  const { registerRule110Stepper } = await import('./tc/tcRule110.js');
-  const { stepper } = registerRule110Stepper({
-    width: 128,
-    initializer: 'random',
-    initializerOptions: { density: 0.7, seed: 42 }
-  });
-  window.rule110Stepper = stepper;
+  (async () => {
+    // Random initializer with high density
+    const { registerRule110Stepper } = await import('./tc/tcRule110.js');
+    const { stepper } = registerRule110Stepper({
+      width: 128,
+      initializer: 'random',
+      initializerOptions: { density: 0.7, seed: 42 }
+    });
+    window.rule110Stepper = stepper;
+    
+    const { CONFIG } = await import('./config.js');
+    CONFIG.tcResourceIntegration.enabled = true;
+    CONFIG.tcResourceIntegration.mode = 'hybrid';
+    CONFIG.tcResourceIntegration.activityInfluence = 0.8;  // Strong modulation
   
-  const { CONFIG } = await import('./config.js');
-  CONFIG.tcResourceIntegration.enabled = true;
-  CONFIG.tcResourceIntegration.mode = 'hybrid';
-  CONFIG.tcResourceIntegration.activityInfluence = 0.8;  // Strong modulation
-  World.reset();
-  
-  console.log('🌳 Dense garden mode! Many clustered resources.');
-})();
+    
+    console.log('🌳 Dense garden mode! Many clustered resources.');
+  })();
 ```
 
 ### Example 3: Computational Seasons
@@ -123,7 +181,17 @@ Paste this **complete block** into your browser console (all at once):
   CONFIG.tcResourceIntegration.minSpawnMultiplier = 0.2;  // Harsh winters
   CONFIG.tcResourceIntegration.maxSpawnMultiplier = 2.0;  // Abundant springs
   CONFIG.tcResourceIntegration.activityInfluence = 1.0;   // Full effect
-  World.reset();
+  CONFIG.tcResourceIntegration.showOverlay = true;
+  
+  World.reset();  // Reset first
+  
+  // Register stepper after reset
+  const { registerRule110Stepper } = await import('./tc/tcRule110.js');
+  const { stepper } = registerRule110Stepper({
+    width: 128,
+    initializer: 'ether'
+  });
+  window.rule110Stepper = stepper;
   
   console.log('🌦️ Seasonal mode! Watch spawn rate cycle with TC activity.');
   
@@ -154,7 +222,7 @@ All options in `CONFIG.tcResourceIntegration`:
 | `minSpawnMultiplier` | number | 0.5 | Min rate at 0% activity |
 | `maxSpawnMultiplier` | number | 1.5 | Max rate at 100% activity |
 | `showOverlay` | boolean | false | Show Rule 110 visualization |
-| `overlayOpacity` | number | 0.15 | Overlay transparency |
+| `overlayOpacity` | number | 0.3 | Overlay transparency (0.1=very faint, 0.5=moderate, 1.0=opaque) |
 | `overlayHeight` | number | 40 | Overlay bar height (px) |
 | `overlayPosition` | string | 'top' | 'top' or 'bottom' |
 
@@ -271,16 +339,16 @@ clearInterval(logInterval);
 })();
 ```
 
-**Q: Want to see what's happening**
+**Q: Want to see what's happening (overlay is too faint)**
 ```javascript
 (async () => {
   const { CONFIG } = await import('./config.js');
   
-  // Enable overlay
+  // Enable overlay (if not already enabled)
   CONFIG.tcResourceIntegration.showOverlay = true;
   
-  // Make it more visible
-  CONFIG.tcResourceIntegration.overlayOpacity = 0.3;
+  // Make it MORE visible - increase opacity
+  CONFIG.tcResourceIntegration.overlayOpacity = 0.5;  // or even 0.7 for very visible
   CONFIG.tcResourceIntegration.overlayHeight = 60;
   
   // Add logging to respawn

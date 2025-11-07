@@ -338,9 +338,9 @@ export const CONFIG = {
     maxSpawnMultiplier: 1.5,  // Max spawn rate at 100% Rule 110 activity
     
     // Visual feedback
-    showOverlay: true,       // Show Rule 110 state as overlay on world
-    overlayOpacity: 0.15,     // Overlay transparency
-    overlayHeight: 40,        // Height of Rule 110 visualization bar (pixels)
+    showOverlay: false,       // Show Rule 110 state as overlay on world (enable for debugging)
+    overlayOpacity: 0.3,      // Overlay transparency (increased from 0.15 for better visibility)
+    overlayHeight: 20,        // Height of Rule 110 visualization bar (pixels)
     overlayPosition: 'top',   // 'top' | 'bottom'
   },
 
@@ -415,6 +415,7 @@ export const CONFIG = {
       provenanceCredit: .5,        // +R when others reuse your trails
       death: -50.0,               // -R when χ reaches 0
       gradientClimb: 5.0,         // +R per pixel moved closer to food (gradient climbing)
+      signalResponse: 1.5,        // +R for moving toward resource signal gradients
     },
     
     // Episode settings
@@ -704,6 +705,7 @@ export const CONFIG_SCHEMA = {
     "learning.rewards.provenanceCredit": { label: "Reward: provenance", min: -10, max: 10, step: 0.01 },
     "learning.rewards.death": { label: "Reward: death", min: -500, max: 0, step: 1 },
     "learning.rewards.gradientClimb": { label: "Reward: gradient climb", min: -50, max: 50, step: 0.1 },
+    "learning.rewards.signalResponse": { label: "Reward: signal response", min: -10, max: 10, step: 0.1 },
     "learning.episodeLength": { label: "Episode length", min: 100, max: 20000, step: 10 },
     "learning.terminateOnDeath": { label: "Terminate on death", type: "boolean" },
     "learning.populationSize": { label: "Population size", min: 1, max: 200, step: 1 },
@@ -946,6 +948,7 @@ const CONFIG_HINTS = {
   "learning.rewards.provenanceCredit": "Reward when others reuse your trails.",
   "learning.rewards.death": "Penalty weight applied on death.",
   "learning.rewards.gradientClimb": "Reward weight for approaching resources.",
+  "learning.rewards.signalResponse": "Reward for moving toward resource signal gradients.",
   "learning.episodeLength": "Maximum ticks per training episode.",
   "learning.terminateOnDeath": "End episode immediately upon death.",
   "learning.populationSize": "Number of policies evaluated per generation.",
