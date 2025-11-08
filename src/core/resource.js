@@ -189,5 +189,9 @@ export function createResourceClass(context) {
       this.age++;
       this.updateCooldown();
     }
+
+    destroy() {
+        this.graphics.destroy();
+    }
   };
 }

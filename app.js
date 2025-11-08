@@ -52,11 +52,15 @@ import { collectResource } from './src/systems/resourceSystem.js';
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
+        autoStart: false,
     });
     const resourcesContainer = new PIXI.Container();
     pixiApp.stage.addChild(resourcesContainer);
+    const agentsContainer = new PIXI.Container();
+    pixiApp.stage.addChild(agentsContainer);
     window.pixiApp = pixiApp; // For debugging
     window.resourcesContainer = resourcesContainer; // For debugging
+    window.agentsContainer = agentsContainer; // For debugging
   
     // ---------- DPR-aware sizing ----------
     let dpr = 1;
@@ -1496,7 +1500,8 @@ import { collectResource } from './src/systems/resourceSystem.js';
 
         if (World.resources.length > maxResources) {
           const excess = World.resources.length - maxResources;
-          World.resources.splice(-excess, excess);
+          const removed = World.resources.splice(-excess, excess);
+          removed.forEach(res => res.destroy());
           console.log(`🔪 Culled ${excess} excess resources due to competition (${aliveCount} agents)`);
         }
 
@@ -1551,6 +1556,7 @@ import { collectResource } from './src/systems/resourceSystem.js';
           const idx = toRemove[i];
           if (idx >= 0 && idx < World.bundles.length) {
             const removed = World.bundles.splice(idx, 1)[0];
+            removed.destroy();
             console.log(`💀 Agent ${removed.id} fully decayed and removed | Pop: ${World.bundles.length}`);
           }
         }
@@ -1646,7 +1652,7 @@ import { collectResource } from './src/systems/resourceSystem.js';
         drawLineageLinks(ctx);
       }
 
-      World.bundles.forEach((bundle) => bundle.draw(ctx));
+      World.bundles.forEach((bundle) => bundle.draw());
 
       drawHUD();
 
@@ -1655,6 +1661,7 @@ import { collectResource } from './src/systems/resourceSystem.js';
       }
 
       // Draw the PixiJS stage
+      pixiApp.render();
       ctx.drawImage(pixiApp.view, 0, 0);
     };
 

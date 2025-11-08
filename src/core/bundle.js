@@ -74,6 +74,7 @@ export function createBundleClass(context) {
   class Bundle {
     constructor(x, y, size, chi, id, useController = false) {
       this.x = x; this.y = y;
+      this.visualX = x; this.visualY = y;
       this.vx = 0; this.vy = 0;                // inertial velocity
       this.size = size;
       this.chi = chi;
@@ -140,6 +141,9 @@ export function createBundleClass(context) {
 
       // Participation wave context sampled from ParticipationManager
       this.participationWaveSample = null;
+
+      this.graphics = new PIXI.Graphics();
+      agentsContainer.addChild(this.graphics);
     }
 
     computeSensoryRange(dt) {
@@ -709,106 +713,80 @@ export function createBundleClass(context) {
       this.vy = steering.vy;
     }
 
-    draw(ctx) {
-      // Skip rendering if not visible
-      if (!this.visible) return;
+    draw() {
+        this.graphics.clear();
+        this.graphics.visible = this.visible;
 
-      // Get color using dynamic color function
-      const color = getAgentColor(this.id, this.alive);
-
-      // sensory ring when extended
-      if (this.extendedSensing && this.alive) {
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.3;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.currentSensoryRange, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Controller indicator - glowing circular border when using policy
-      if (this.useController && this.controller && this.alive) {
-        ctx.save();
-        ctx.strokeStyle = "#ffff00"; // yellow for controller
-        ctx.globalAlpha = 0.6 + Math.sin(currentTick() * 0.2) * 0.3;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size/2 + 3, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // frustration pulse when high
-      if (this.frustration >= 0.9 && this.alive) {
-        ctx.save();
-        ctx.strokeStyle = "#ff0000";
-        ctx.globalAlpha = 0.5 + Math.sin(currentTick() * 0.3) * 0.3;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // hunger pulse when starving
-      if (this.hunger >= CONFIG.hungerThresholdHigh && this.alive) {
-        ctx.save();
-        ctx.strokeStyle = "#ff8800";
-        ctx.globalAlpha = 0.4 + Math.sin(currentTick() * 0.25) * 0.3;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * 0.7, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // body (with decay effects if dead) - draw as circle
-      ctx.save();
-
-      // Apply decay visual effects
-      if (!this.alive && CONFIG.decay.enabled && CONFIG.decay.visualFade) {
-        // Fade and shrink based on decay progress
-        const fade = 1 - this.decayProgress;
-        ctx.globalAlpha = fade * 0.7; // Max 70% opacity when fresh
-
-        // Change color to brown/gray as it decays
-        const decayColorMix = this.decayProgress;
-        ctx.fillStyle = `rgba(60, 50, 40, ${fade})`; // Dark brown decay color
-      } else {
-        ctx.fillStyle = color;
-      }
-
-      // Shrink size as it decays
-      const decayScale = this.alive ? 1.0 : (1.0 - this.decayProgress * 0.6); // Shrink to 40% of original
-      const effectiveSize = this.size * decayScale;
-      const radius = effectiveSize / 2;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-
-      // Controller label above agent
-      if (this.useController && this.controller) {
-        ctx.save();
-        ctx.font = "bold 10px ui-mono, monospace";
-        ctx.fillStyle = "#ffff00";
-        ctx.textAlign = "center";
-        const label = this.controller.constructor.name === "LinearPolicyController" ? "POLICY" : "CTRL";
-        ctx.fillText(label, this.x, this.y - this.size/2 - 8);
-
-        // Show last action values if available (for debugging)
-        if (this.lastAction && CONFIG.hud.showActions) {
-          ctx.font = "9px ui-mono, monospace";
-          ctx.fillStyle = "#ffff00";
-          const actionText = `T:${this.lastAction.turn.toFixed(2)} P:${this.lastAction.thrust.toFixed(2)} S:${this.lastAction.senseFrac.toFixed(2)}`;
-          ctx.fillText(actionText, this.x, this.y + this.size/2 + 16);
+        if (!this.visible) {
+            return;
         }
-        ctx.restore();
-      }
+
+        const LERP_RATE = 0.1;
+        this.visualX += (this.x - this.visualX) * LERP_RATE;
+        this.visualY += (this.y - this.visualY) * LERP_RATE;
+
+        this.graphics.x = this.visualX;
+        this.graphics.y = this.visualY;
+
+        // Get color using dynamic color function
+        let color = parseInt(getAgentColor(this.id, this.alive).substring(1), 16);
+
+        if (this.alive) {
+            const chiPercentage = this.chi / CONFIG.maxChi;
+            const red = Math.round(255 * (1 - chiPercentage));
+            const green = Math.round(255 * chiPercentage);
+            const blue = 0;
+            color = (red << 16) | (green << 8) | blue;
+        }
+
+        // sensory ring when extended
+        if (this.extendedSensing && this.alive) {
+            this.graphics.lineStyle(2, color, 0.3);
+            this.graphics.drawCircle(0, 0, this.currentSensoryRange);
+        }
+
+        // Controller indicator - glowing circular border when using policy
+        if (this.useController && this.controller && this.alive) {
+            const alpha = 0.6 + Math.sin(currentTick() * 0.2) * 0.3;
+            this.graphics.lineStyle(3, 0xffff00, alpha); // yellow for controller
+            this.graphics.drawCircle(0, 0, this.size / 2 + 3);
+        }
+
+        // frustration pulse when high
+        if (this.frustration >= 0.9 && this.alive) {
+            const alpha = 0.5 + Math.sin(currentTick() * 0.3) * 0.3;
+            this.graphics.lineStyle(3, 0xff0000, alpha);
+            this.graphics.drawCircle(0, 0, this.size);
+        }
+
+        // hunger pulse when starving
+        if (this.hunger >= CONFIG.hungerThresholdHigh && this.alive) {
+            // PixiJS doesn't have a direct equivalent of setLineDash, so we'll skip this for now.
+            // A more advanced implementation could use a custom shader or a tiled sprite.
+        }
+
+        // body (with decay effects if dead) - draw as circle
+        const decayScale = this.alive ? 1.0 : (1.0 - this.decayProgress * 0.6); // Shrink to 40% of original
+        const effectiveSize = this.size * decayScale;
+        const radius = effectiveSize / 2;
+
+        let bodyColor = color;
+        let alpha = 1.0;
+
+        // Apply decay visual effects
+        if (!this.alive && CONFIG.decay.enabled && CONFIG.decay.visualFade) {
+            const fade = 1 - this.decayProgress;
+            alpha = fade * 0.7; // Max 70% opacity when fresh
+            // Change color to brown/gray as it decays
+            bodyColor = 0x3C3228; // Dark brown decay color
+        }
+
+        this.graphics.beginFill(bodyColor, alpha);
+        this.graphics.drawCircle(0, 0, radius);
+        this.graphics.endFill();
+
+        // Controller label above agent - this will be harder with PixiJS, as it requires a Text object.
+        // I will skip this for now to keep the initial migration simple.
     }
 
     /**
@@ -932,6 +910,10 @@ export function createBundleClass(context) {
      */
     updateDecay(dt, fertilityGrid) {
       return decaySystem.updateCorpseDecay(this, dt, fertilityGrid);
+    }
+
+    destroy() {
+        this.graphics.destroy();
     }
   }
 
