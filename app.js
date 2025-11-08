@@ -117,6 +117,150 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
     };
     const SIGNAL_MEMORY_LENGTH = Math.max(3, CONFIG.signal?.memoryLength || 12);
     const SIGNAL_DISTRESS_NOISE_GAIN = 1.5;
+
+    // ---------- Mouse Tracking for Resource Tooltips ----------
+    const mousePos = { x: 0, y: 0, hoveredResource: null };
+    
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mousePos.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      mousePos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      
+      // Check if mouse is over any resource
+      mousePos.hoveredResource = null;
+      const hoverRadius = 30; // Detection radius for hover
+      
+      for (const res of World.resources) {
+        const dx = mousePos.x - res.x;
+        const dy = mousePos.y - res.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist <= res.r + hoverRadius) {
+          mousePos.hoveredResource = res;
+          break;
+        }
+      }
+    });
+    
+    canvas.addEventListener('mouseleave', () => {
+      mousePos.hoveredResource = null;
+    });
+
+    // ---------- Resource Tooltip Drawer ----------
+    function drawResourceTooltip(ctx, resource) {
+      const padding = 8;
+      const lineHeight = 16;
+      const fontSize = 12;
+      
+      // Prepare tooltip text
+      const lines = [
+        `Resource #${World.resources.indexOf(resource) + 1}`,
+        `Position: (${Math.round(resource.x)}, ${Math.round(resource.y)})`,
+        `Radius: ${resource.r}px`,
+        `Age: ${resource.age} ticks`,
+        `Visible: ${resource.visible}`,
+        `─────────────────────`,
+        `Vitality: ${(resource.vitality || 0).toFixed(3)}`,
+        `Status: ${resource.depleted ? 'DEPLETED' : 'Available'}`,
+        `Depletion Threshold: ${CONFIG.scentGradient.depletionThreshold}`,
+        `─────────────────────`,
+        `Scent Strength: ${(resource.scentStrength || 0).toFixed(3)}`,
+        `Scent Range: ${Math.round(resource.scentRange || 0)}px`,
+        `Base Strength: ${CONFIG.scentGradient.strength}`,
+        `Min Strength: ${CONFIG.scentGradient.minStrength}`,
+        `Consumable: ${CONFIG.scentGradient.consumable ? 'Yes' : 'No'}`
+      ];
+      
+      // Calculate tooltip dimensions
+      ctx.save();
+      ctx.font = `${fontSize}px ui-mono, monospace`;
+      const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+      const tooltipWidth = maxWidth + padding * 2;
+      const tooltipHeight = lines.length * lineHeight + padding * 2;
+      
+      // Position tooltip near resource but keep on screen
+      let tooltipX = resource.x + 40;
+      let tooltipY = resource.y - tooltipHeight / 2;
+      
+      // Keep tooltip on screen
+      if (tooltipX + tooltipWidth > canvas.width - 10) {
+        tooltipX = resource.x - tooltipWidth - 40;
+      }
+      if (tooltipY < 10) tooltipY = 10;
+      if (tooltipY + tooltipHeight > canvas.height - 10) {
+        tooltipY = canvas.height - tooltipHeight - 10;
+      }
+      
+      // Draw tooltip background
+      ctx.fillStyle = 'rgba(12, 12, 16, 0.95)';
+      ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+      
+      // Draw border - red if depleted, green if available
+      if (resource.depleted) {
+        ctx.strokeStyle = '#ff4444';
+      } else {
+        ctx.strokeStyle = CONFIG.scentGradient.consumable ? '#00ff88' : '#888';
+      }
+      ctx.lineWidth = 2;
+      ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+      
+      // Draw text
+      ctx.fillStyle = '#e6f3ec';
+      ctx.textBaseline = 'top';
+      lines.forEach((line, i) => {
+        // Color-code important values
+        if (line.includes('Vitality:')) {
+          const vitality = resource.vitality || 0;
+          const threshold = CONFIG.scentGradient.depletionThreshold;
+          
+          // Color from red (depleted) to yellow to green (full)
+          if (vitality <= threshold) {
+            // Red when depleted
+            ctx.fillStyle = '#ff4444';
+          } else if (vitality < 0.6) {
+            // Yellow transitioning
+            const r = 255;
+            const g = Math.round(140 + (vitality - threshold) * 200);
+            ctx.fillStyle = `rgb(${r}, ${g}, 0)`;
+          } else {
+            // Green when healthy
+            const g = Math.round(155 + vitality * 100);
+            ctx.fillStyle = `rgb(0, ${g}, 88)`;
+          }
+        } else if (line.includes('Status:')) {
+          // Red if depleted, green if available
+          ctx.fillStyle = resource.depleted ? '#ff4444' : '#00ff88';
+        } else if (line.includes('Scent Strength:')) {
+          const strength = resource.scentStrength || 0;
+          const minStrength = CONFIG.scentGradient.minStrength;
+          const baseStrength = CONFIG.scentGradient.strength;
+          const ratio = (strength - minStrength) / (baseStrength - minStrength);
+          
+          // Color from red (depleted) to green (full)
+          const r = Math.round(255 * (1 - ratio));
+          const g = Math.round(255 * ratio);
+          ctx.fillStyle = `rgb(${r}, ${g}, 0)`;
+        } else if (line.includes('───')) {
+          ctx.fillStyle = '#666';
+        } else {
+          ctx.fillStyle = '#e6f3ec';
+        }
+        
+        ctx.fillText(line, tooltipX + padding, tooltipY + padding + i * lineHeight);
+      });
+      
+      // Draw connector line from resource to tooltip
+      ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(resource.x, resource.y);
+      ctx.lineTo(tooltipX, tooltipY + tooltipHeight / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.restore();
+    }
     const SIGNAL_RESOURCE_PULL_GAIN = 2.5;  // Increased from 0.65 - stronger signal following
     const SIGNAL_BOND_CONFLICT_DAMP = 0.7;
     const normalizeRewardSignal = (rewardChi) => {
@@ -1558,6 +1702,12 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
         const baseRange = CONFIG.scentGradient.maxRange;
         const consumeRate = CONFIG.scentGradient.consumePerSec * dt;
         const recoverRate = CONFIG.scentGradient.recoverPerSec * dt;
+        
+        // Resource vitality depletion
+        const vitalityConsumeRate = CONFIG.scentGradient.vitalityConsumePerSec * dt;
+        const vitalityRecoverRate = CONFIG.scentGradient.vitalityRecoverPerSec * dt;
+        const minVitality = CONFIG.scentGradient.minVitality;
+        const depletionThreshold = CONFIG.scentGradient.depletionThreshold;
 
         for (const res of World.resources) {
           if (!res.visible) continue;
@@ -1570,15 +1720,35 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
           const inner = res.r;
           const outer = res.r + orbitBand;
           if (nearest > inner && nearest <= outer) {
+            // Agent is orbiting - consume both scent and vitality
             const t = 1 - (nearest - inner) / Math.max(1e-6, outer - inner);
             const use = t * t;
+            
+            // Deplete scent
             res.scentStrength = Math.max(minStrength, res.scentStrength - consumeRate * use);
             const frac = res.scentStrength / baseStrength;
             const targetRange = Math.max(minRange, baseRange * frac);
             res.scentRange += (targetRange - res.scentRange) * 0.5;
+            
+            // Deplete vitality (resource health)
+            res.vitality = Math.max(minVitality, res.vitality - vitalityConsumeRate * use);
+            
+            // Mark as depleted if below threshold
+            if (res.vitality <= depletionThreshold) {
+              res.depleted = true;
+            }
           } else {
+            // No agent orbiting - recover scent and vitality
             res.scentStrength = Math.min(baseStrength, res.scentStrength + recoverRate);
             res.scentRange = Math.min(baseRange, res.scentRange + (baseRange - res.scentRange) * 0.1);
+            
+            // Recover vitality
+            res.vitality = Math.min(1.0, res.vitality + vitalityRecoverRate);
+            
+            // Un-deplete if recovered above threshold
+            if (res.vitality > depletionThreshold + 0.1) {
+              res.depleted = false;
+            }
           }
         }
       }
@@ -1622,7 +1792,9 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
       World.bundles.forEach((bundle) => {
         if (!bundle.alive) return;
         for (const res of World.resources) {
+          // Skip if resource is not visible, not overlapping, or depleted
           if (!(res.visible && bundle.overlapsResource(res))) continue;
+          if (res.depleted) continue; // Can't collect depleted resources!
 
           const result = collectResource({
             bundle,
@@ -1821,6 +1993,11 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
       Trail.draw();
 
       World.resources.forEach((res) => res.draw());
+
+      // Draw resource hover tooltip
+      if (mousePos.hoveredResource) {
+        drawResourceTooltip(ctx, mousePos.hoveredResource);
+      }
 
       if (ParticipationManager && typeof ParticipationManager.draw === 'function') {
         try {
