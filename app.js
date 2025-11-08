@@ -521,6 +521,7 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
       authorBuf: null, authorSnapshot: null,
       timestampBuf: null, timestampSnapshot: null,
       img: null, offscreen: null,
+      offscreenCtx: null,
   
       resize() {
         // Preserve old dimensions and buffers
@@ -548,6 +549,7 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
         this.offscreen = document.createElement('canvas');
         this.offscreen.width = this.w;
         this.offscreen.height = this.h;
+        this.offscreenCtx = this.offscreen.getContext('2d');
         
         // Copy old data to new buffers (best effort)
         if (oldBuf && oldW > 0 && oldH > 0) {
@@ -642,34 +644,75 @@ import { MetricsTracker } from './src/core/metricsTracker.js';
       draw() {
         if (!CONFIG.renderTrail || !this.buf || !this.offscreen) return;
         const data = this.img.data;
-        
+
         for (let i = 0; i < this.buf.length; i++) {
           const v = this.buf[i];                 // 0..1
           const authorId = this.authorBuf[i];
-          const intensity = Math.floor(Math.pow(v, 0.6) * 255);
+          const baseStrength = Math.pow(v, 0.55);
+          const glowStrength = Math.pow(v, 0.85);
+          const highlightStrength = Math.pow(v, 1.35);
           const o = i * 4;
-          
+
           // Get color based on author using dynamic color function
           // Neutral deposits (authorId===0) use a subtle gray to avoid overpowering
           const color = authorId !== 0 ? getAgentColorRGB(authorId) : { r: 140, g: 140, b: 140 };
-          
-          data[o+0] = Math.floor(color.r * intensity / 255);
-          data[o+1] = Math.floor(color.g * intensity / 255);
-          data[o+2] = Math.floor(color.b * intensity / 255);
-          data[o+3] = Math.min(255, intensity * 1.5);
+          const highlightedColor = {
+            r: Math.min(255, color.r + (255 - color.r) * highlightStrength * 0.45),
+            g: Math.min(255, color.g + (255 - color.g) * highlightStrength * 0.45),
+            b: Math.min(255, color.b + (255 - color.b) * highlightStrength * 0.45)
+          };
+
+          data[o+0] = Math.floor(highlightedColor.r * baseStrength);
+          data[o+1] = Math.floor(highlightedColor.g * baseStrength);
+          data[o+2] = Math.floor(highlightedColor.b * baseStrength);
+          data[o+3] = Math.min(255, glowStrength * 210 + highlightStrength * 45);
         }
-        const octx = this.offscreen.getContext('2d');
+
+        const octx = this.offscreenCtx || (this.offscreenCtx = this.offscreen.getContext('2d'));
+        if (!octx) return;
         octx.putImageData(this.img, 0, 0);
-  
+
+        const destW = this.w * this.cell;
+        const destH = this.h * this.cell;
+        const blurPx = Math.max(1.5, this.cell * 0.85);
+        const outerPad = Math.max(this.cell * 0.8, 2);
+        const midBlur = Math.max(0.75, this.cell * 0.45);
+
         ctx.save();
-        ctx.imageSmoothingEnabled = false;
         ctx.globalCompositeOperation = "lighter";
+        ctx.imageSmoothingEnabled = true;
+
+        ctx.filter = `blur(${blurPx.toFixed(2)}px)`;
+        ctx.globalAlpha = 0.55;
         ctx.drawImage(
           this.offscreen,
           0, 0, this.w, this.h,
-          0, 0, this.w * this.cell, this.h * this.cell
+          -outerPad, -outerPad,
+          destW + outerPad * 2,
+          destH + outerPad * 2
         );
-        ctx.globalCompositeOperation = "source-over";
+
+        ctx.filter = `blur(${midBlur.toFixed(2)}px)`;
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(
+          this.offscreen,
+          0, 0, this.w, this.h,
+          -this.cell * 0.4,
+          -this.cell * 0.4,
+          destW + this.cell * 0.8,
+          destH + this.cell * 0.8
+        );
+
+        ctx.filter = 'none';
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(
+          this.offscreen,
+          0, 0, this.w, this.h,
+          0, 0, destW, destH
+        );
+
+        ctx.globalAlpha = 1;
+        ctx.filter = 'none';
         ctx.restore();
       }
     };
