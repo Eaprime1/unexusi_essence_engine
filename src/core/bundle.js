@@ -390,8 +390,18 @@ export function createBundleClass(context) {
         const ty = resource.y - this.y;
         const dist = Math.hypot(tx, ty);
         if (dist > 0 && dist <= this.currentSensoryRange) {
-          dx += (tx / dist);
-          dy += (ty / dist);
+          // Use configurable attraction strength to overpower competing forces
+          const baseAttraction = CONFIG.aiResourceAttractionStrength || 1.0;
+          
+          // Optional: Scale attraction stronger when closer (1x at max range, up to 2x when very close)
+          const distanceFactor = CONFIG.aiResourceAttractionScaleWithDistance 
+            ? (1.0 + (1.0 - Math.min(dist, this.currentSensoryRange) / this.currentSensoryRange))
+            : 1.0;
+          
+          const attractionStrength = baseAttraction * distanceFactor;
+          
+          dx += (tx / dist) * attractionStrength;
+          dy += (ty / dist) * attractionStrength;
           resourceVisible = true;
         }
       }

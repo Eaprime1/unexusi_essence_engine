@@ -279,6 +279,10 @@ export const CONFIG = {
   aiTrailFollowingFar: 2.6,
   aiSampleDistance: 46,
 
+  // === Resource Seeking ===
+  aiResourceAttractionStrength: 5.0,          // Strength of pull toward visible resources (1.0 = original, 5.0 = stronger)
+  aiResourceAttractionScaleWithDistance: true, // Scale attraction stronger when closer to resource
+
   // === Frustration (now smooth 0..1) ===
   aiFrustrationBuildRate: 0.5,       // Reduced from 0.25 (slower frustration build)
   aiFrustrationDecayRate: 0.6,
@@ -326,7 +330,12 @@ export const CONFIG = {
     recoverPerSec: 0.03,             // Strength/sec recovery when no agents orbit
     minStrength: 0.2,                // Floor for strength
     minRange: 150,                   // Floor for range (px)
-    orbitBandPx: 140                 // Band outside resource.r considered "orbit"
+    orbitBandPx: 140,                // Band outside resource.r considered "orbit"
+    // Resource vitality depletion
+    vitalityConsumePerSec: 0.10,     // Resource health depletes from orbiting
+    vitalityRecoverPerSec: 0.02,     // Resource health recovers when not orbited
+    minVitality: 0.0,                // Floor for vitality (0 = completely depleted)
+    depletionThreshold: 0.3          // Below this, resource becomes uncollectible
   },
 
   // === TC-Resource Integration ===
@@ -641,6 +650,8 @@ export const CONFIG_SCHEMA = {
     aiTrailFollowingNear: { label: "Trail follow (near)", min: 0, max: 10, step: 0.05 },
     aiTrailFollowingFar: { label: "Trail follow (far)", min: 0, max: 10, step: 0.05 },
     aiSampleDistance: { label: "Sample distance (px)", min: 0, max: 400, step: 1 },
+    aiResourceAttractionStrength: { label: "Resource attraction", min: 0, max: 20, step: 0.1 },
+    aiResourceAttractionScaleWithDistance: { label: "Scale attraction w/ distance", type: "boolean" },
   },
   Frustration: {
     aiFrustrationBuildRate: { label: "Frustration build", min: 0, max: 5, step: 0.01 },
@@ -692,6 +703,10 @@ export const CONFIG_SCHEMA = {
     "scentGradient.minStrength": { label: "Min strength", min: 0, max: 5, step: 0.01 },
     "scentGradient.minRange": { label: "Min range (px)", min: 0, max: 400, step: 5 },
     "scentGradient.orbitBandPx": { label: "Orbit band (px)", min: 0, max: 400, step: 5 },
+    "scentGradient.vitalityConsumePerSec": { label: "Vitality consume/sec", min: 0, max: 1, step: 0.01 },
+    "scentGradient.vitalityRecoverPerSec": { label: "Vitality recover/sec", min: 0, max: 1, step: 0.01 },
+    "scentGradient.minVitality": { label: "Min vitality", min: 0, max: 1, step: 0.01 },
+    "scentGradient.depletionThreshold": { label: "Depletion threshold", min: 0, max: 1, step: 0.01 },
   },
   Mitosis: {
     "mitosis.enabled": { label: "Enable mitosis", type: "boolean" },
@@ -1301,15 +1316,15 @@ function buildConfigPanel(){
       <button id="cfg-participation-toggle" style="align-self:center;">Enable</button>
     </div>
     <div id="cfg-profiles" style="display:flex; gap:6px; margin-bottom:8px;">
-      <select id="cfg-profile-list" style="flex:1"></select>
-      <button id="cfg-load">Load</button>
-      <button id="cfg-save">Save</button>
+      <select id="cfg-profile-list" style="flex:1; min-width:0;"></select>
+      <button id="cfg-load" style="min-width:70px; flex-shrink:0;">Load</button>
+      <button id="cfg-save" style="min-width:70px; flex-shrink:0;">Save</button>
     </div>
     <div style="display:flex; gap:6px; margin-bottom:8px;">
-      <input id="cfg-name" placeholder="profile name" style="flex:1"/>
-      <button id="cfg-del">Delete</button>
-      <button id="cfg-exp">Export</button>
-      <button id="cfg-imp">Import</button>
+      <input id="cfg-name" placeholder="profile name" style="flex:1; min-width:0;"/>
+      <button id="cfg-del" style="min-width:70px; flex-shrink:0;">Delete</button>
+      <button id="cfg-exp" style="min-width:70px; flex-shrink:0;">Export</button>
+      <button id="cfg-imp" style="min-width:70px; flex-shrink:0;">Import</button>
     </div>
     <div id="cfg-groups"></div>
     <div style="opacity:.6; margin-top:10px;">[O] toggle · [1–9] quick load</div>

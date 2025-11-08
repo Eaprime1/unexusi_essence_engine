@@ -1,0 +1,29 @@
+{
+  "name": "Optimized F (gen5)",
+  "description": "Auto-optimized config targeting F objective. Fitness: 0.000, Convergence: 81.3%",
+  "snapshot": {
+    "version": 1,
+    "ts": 1762587141529,
+    "params": {
+      "baseDecayPerSecond": 0.1363756585658737,
+      "moveSpeedPxPerSec": 146.24155235038774,
+      "moveCostPerSecond": 0.5592446034302291,
+      "sensing.radius": 60.96181469999437,
+      "sensing.costPerSecond": 0.054245268474410024,
+      "sensing.radiusRangeFactor": 2.3590135378190307,
+      "trail.emitPerSecond": 1.4218022885921253,
+      "trail.decayPerSecond": 0.053487776451752955,
+      "trail.attractionGain": 0.2603421109423385,
+      "trail.costPerSecond": 0.030720963352892056,
+      "frustration.riseRate": 0.05012597218400529,
+      "frustration.fallRate": 0.1342002278198563,
+      "frustration.noiseGain": 1.5976335592958493,
+      "frustration.hungerAmplify": 0.5449853936635641,
+      "link.formCost": 1.5554191325871383,
+      "link.maintPerSec": 0.01513411314465224,
+      "link.decayPerSec": 0.016060071021300637,
+      "link.strengthenPerUse": 0.02367195642560758,
+      "link.guidanceGain": 0.8946072809455057
+    }
+  }
+}

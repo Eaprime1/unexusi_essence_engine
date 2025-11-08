@@ -76,6 +76,9 @@ export function createResourceClass(context) {
       // Consumable scent parameters (per-resource)
       this.scentStrength = CONFIG.scentGradient.strength;
       this.scentRange = CONFIG.scentGradient.maxRange;
+      // Resource depletion/vitality system
+      this.vitality = 1.0; // Resource health (1.0 = full, 0 = depleted)
+      this.depleted = false; // Whether resource is too depleted to collect
       this.tcData = null;
 
       this.graphics = new PIXI.Graphics();
@@ -107,6 +110,17 @@ export function createResourceClass(context) {
             const greenIntensity = Math.floor(155 + fertility * 100);
             const blueComponent = Math.floor(88 + fertility * 40);
             color = (greenIntensity << 8) | blueComponent;
+        }
+
+        // Modify color and appearance based on vitality/depletion
+        if (this.vitality < 1.0) {
+            // Fade from green to brown/gray as vitality decreases
+            const vitalityRatio = Math.max(0, this.vitality);
+            const green = Math.floor(155 * vitalityRatio + 50 * (1 - vitalityRatio));
+            const red = Math.floor(120 * (1 - vitalityRatio));
+            const blue = Math.floor(88 * vitalityRatio);
+            color = (red << 16) | (green << 8) | blue;
+            fertility = fertility * vitalityRatio; // Reduce glow when depleted
         }
 
         // Multi-layer rendering for smooth, glowing appearance
@@ -227,6 +241,9 @@ export function createResourceClass(context) {
       // Reset scent gradient on respawn
       this.scentStrength = CONFIG.scentGradient.strength;
       this.scentRange = CONFIG.scentGradient.maxRange;
+      // Reset vitality on respawn
+      this.vitality = 1.0;
+      this.depleted = false;
     }
 
     /**

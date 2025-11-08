@@ -1,0 +1,29 @@
+{
+  "name": "Optimized R (gen5)",
+  "description": "Auto-optimized config targeting R objective. Fitness: 1.863, Convergence: 81.5%",
+  "snapshot": {
+    "version": 1,
+    "ts": 1762588846196,
+    "params": {
+      "baseDecayPerSecond": 0.11046901572152745,
+      "moveSpeedPxPerSec": 118.8098307307094,
+      "moveCostPerSecond": 0.3359163810552274,
+      "sensing.radius": 74.66953665778068,
+      "sensing.costPerSecond": 0.0714612397457968,
+      "sensing.radiusRangeFactor": 1.9211588469881486,
+      "trail.emitPerSecond": 0.9885210184478256,
+      "trail.decayPerSecond": 0.06290138452131762,
+      "trail.attractionGain": 0.12826354809891358,
+      "trail.costPerSecond": 0.020682488788173123,
+      "frustration.riseRate": 0.14387939755828194,
+      "frustration.fallRate": 0.1340055220184194,
+      "frustration.noiseGain": 1.5969340529299807,
+      "frustration.hungerAmplify": 0.5782995920386729,
+      "link.formCost": 1.622598444151766,
+      "link.maintPerSec": 0.030476186801986896,
+      "link.decayPerSec": 0.017448362184101097,
+      "link.strengthenPerUse": 0.01,
+      "link.guidanceGain": 0.35800245862640956
+    }
+  }
+}
