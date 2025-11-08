@@ -2,7 +2,7 @@
 
 ## Quick Summary
 
-Your slime simulation now trains **BOTH agents simultaneously** using a shared policy!
+Your Essence Engine simulation now trains **BOTH agents simultaneously** using a shared policy!
 
 ---
 
@@ -152,7 +152,7 @@ node policyBatchAnalyzer.js old-gen20.json new-gen20.json --format html
 
 ## 📚 Documentation
 
-**Full guide:** See `MULTI_AGENT_GUIDE.md`
+**Full guide:** See `../how-to/MULTI_AGENT_GUIDE.md`
 
 **Covers:**
 - How multi-agent learning works
