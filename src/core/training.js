@@ -5,6 +5,7 @@ import { ConfigOptimizer, ConfigTrainingManager, TUNABLE_PARAMS } from './config
 import { AdaptiveHeuristics } from './adaptiveHeuristics.js';
 import { buildObservation } from '../../observations.js';
 import { buildStateSnapshot, applyStateSnapshot } from './stateIO.js';
+import { computeBaselineSignals } from '../systems/mitosisController.js';
 
 export function createTrainingModule({
   world,
@@ -43,6 +44,11 @@ export function createTrainingModule({
   let stopTrainingFlag = false;
   let loadedPolicyInfo = null;
   let lastMetricsHistory = null;
+  const pendingMitosisEvents = [];
+  const mitosisFeedbackHorizon = Math.max(
+    1,
+    Math.floor(config?.mitosis?.baseline?.feedbackHorizonTicks ?? 240)
+  );
 
   function getLearningMode() {
     return learningMode;
@@ -100,6 +106,77 @@ export function createTrainingModule({
       adaptiveHeuristics = new AdaptiveHeuristics(config);
     }
     return adaptiveHeuristics;
+  }
+
+  function registerMitosisEvent({ parentId, childId, baseline, tick, mode = 'mitosis' }) {
+    if (!parentId || !childId) return;
+    const signals = baseline?.signals || null;
+    const originalPressure = signals?.pressure ?? null;
+    const originalHarmony = signals?.harmony ?? null;
+    const originalStrain = signals?.strain ?? null;
+
+    pendingMitosisEvents.push({
+      parentId,
+      childId,
+      baselineSignals: signals,
+      tickScheduled: tick,
+      evaluateAt: tick + mitosisFeedbackHorizon,
+      originalPressure,
+      originalHarmony,
+      originalStrain,
+      mode
+    });
+  }
+
+  function processMitosisFeedback(currentTick) {
+    if (!pendingMitosisEvents.length) return;
+    const remaining = [];
+    const ah = ensureAdaptiveHeuristics();
+
+    while (pendingMitosisEvents.length) {
+      const evt = pendingMitosisEvents.shift();
+      if (currentTick < evt.evaluateAt) {
+        remaining.push(evt);
+        continue;
+      }
+
+      const parent = world.bundles.find((b) => b.id === evt.parentId);
+      const child = world.bundles.find((b) => b.id === evt.childId);
+      const survived = Boolean(parent?.alive && child?.alive);
+
+      // Compute fresh signals if possible
+      const parentSignals = parent
+        ? computeBaselineSignals({ bundle: parent, world, config })
+        : null;
+
+      const pressureSpike = parentSignals?.pressure != null && evt.originalPressure != null
+        ? Math.max(0, parentSignals.pressure - evt.originalPressure)
+        : 0;
+      const harmonyDelta = parentSignals?.harmony != null && evt.originalHarmony != null
+        ? parentSignals.harmony - evt.originalHarmony
+        : 0;
+      const strainDelta = parentSignals?.strain != null && evt.originalStrain != null
+        ? parentSignals.strain - evt.originalStrain
+        : 0;
+
+      const reward =
+        (survived ? 0.5 : -0.25) +
+        Math.max(0, harmonyDelta) * 0.5 -
+        Math.max(0, strainDelta) * 0.4 -
+        pressureSpike * 0.4;
+
+      ah.applyMitosisFeedback({
+        survived,
+        harmonyDelta,
+        strainDelta,
+        pressureSpike,
+        reward
+      });
+    }
+
+    if (remaining.length) {
+      pendingMitosisEvents.push(...remaining);
+    }
   }
 
   function getTcContextFactory(mode) {
@@ -1194,5 +1271,7 @@ export function createTrainingModule({
     getAdaptiveHeuristics,
     learnAdaptiveHeuristics,
     resetAdaptiveHeuristics,
+    registerMitosisEvent,
+    processMitosisFeedback
   };
 }

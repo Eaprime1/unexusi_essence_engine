@@ -647,6 +647,12 @@ export class AdaptiveHeuristicsUI {
 
         <div style="margin: 6px 0 4px 0;"><strong style="color: #88ffff;">Hunger Amps:</strong></div>
         <div>• Explore: <span id="ah-hunger-exp">1.00</span> • Frust: <span id="ah-hunger-frust">1.00</span> • Sense: <span id="ah-hunger-sense">1.00</span></div>
+
+        <div style="margin: 6px 0 4px 0;"><strong style="color: #ff9cf0;">Mitosis Baseline:</strong></div>
+        <div>• w1(cap): <span id="ah-mito-cap">1.00</span> • w2(strain): <span id="ah-mito-strain">1.00</span></div>
+        <div>• w3(pressure): <span id="ah-mito-press">1.00</span> • w4(opp): <span id="ah-mito-opp">1.00</span></div>
+        <div>• w5(harm): <span id="ah-mito-harm">1.00</span></div>
+        <div>• signal gain: <span id="ah-mito-signal">1.00</span> • noise: <span id="ah-mito-noise">1.00</span> • div cost: <span id="ah-mito-cost">1.00</span></div>
       </div>
     `;
     this.panel.appendChild(paramsSection);
@@ -805,6 +811,16 @@ export class AdaptiveHeuristicsUI {
     this.updateParam('ah-hunger-exp', m.hungerExplorationAmp);
     this.updateParam('ah-hunger-frust', m.hungerFrustrationAmp);
     this.updateParam('ah-hunger-sense', m.hungerSenseAmp);
+
+    // Mitosis baseline
+    this.updateParam('ah-mito-cap', m.mitosisWCapacity);
+    this.updateParam('ah-mito-strain', m.mitosisWStrain);
+    this.updateParam('ah-mito-press', m.mitosisWPressure);
+    this.updateParam('ah-mito-opp', m.mitosisWOpportunity);
+    this.updateParam('ah-mito-harm', m.mitosisWHarmony);
+    this.updateParam('ah-mito-signal', m.mitosisSignalSensitivity);
+    this.updateParam('ah-mito-noise', m.mitosisNoise);
+    this.updateParam('ah-mito-cost', m.mitosisDivisionCostMultiplier);
   }
 
   updateParam(id, value) {
