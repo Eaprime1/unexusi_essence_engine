@@ -1,0 +1,504 @@
+{
+  "flagSystem": {
+    "version": "1.0-PrimeFoundation",
+    "description": "Ancient Standards with Healing Missions - Prime Number Architecture",
+    "architect": "Eric Pace & Claude Collaboration",
+    "foundationPrime": 13,
+    "collapsePrime": 17,
+    "totalFlags": 50,
+    "fullyDevelopedFlags": 7,
+    "notes": "Primes from 0-17: [2, 3, 5, 7, 11, 13, 17]. Each prime number is a fully developed flag entity. The 'th' notation (0th through 17th) creates expansion framework for factorial progression in later phases."
+  },
+
+  "primeFlags": [
+    {
+      "flagID": 2,
+      "primeNumber": 2,
+      "name": "The Crimson Horde",
+      "category": "Conquest to Connection",
+      "visualDescription": {
+        "field": "Deep red (hex: #8B0000)",
+        "primarySymbol": "Black horse in gallop, centered",
+        "secondarySymbol": "White crescent moon, upper left corner",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Horse should be in profile, dynamic movement. Crescent horns pointing up-right."
+      },
+      "historicalInspiration": "Mongol Empire composite",
+      "shadowHistory": {
+        "summary": "Conquest, systematic destruction, terror tactics, cultural erasure",
+        "specificHarms": [
+          "Estimated 40 million deaths during expansion",
+          "Psychological warfare through reputation",
+          "Destruction of Baghdad House of Wisdom",
+          "Forced displacement of populations"
+        ],
+        "acknowledgment": "The same organizational genius that connected trade routes was weaponized for domination. Speed and efficiency served violence before they served commerce."
+      },
+      "primeExpansion": {
+        "summary": "Transform conquest energy into bridge-building between cultures",
+        "facets": [
+          "Unparalleled logistics and supply chain innovation",
+          "Meritocracy over bloodline (anyone could rise through skill)",
+          "Religious tolerance within empire borders",
+          "Yam system (postal/communication network) - first transcontinental system",
+          "Integration of conquered peoples' skills and knowledge",
+          "Silk Road protection enabling trade and cultural exchange"
+        ],
+        "recognitionStatement": "They proved that vast distances could be bridged through organization and communication. The infrastructure of connection remained after the violence ended."
+      },
+      "healingMission": {
+        "primary": "Transform conquest energy into bridge-building between cultures",
+        "practices": [
+          "Recognize organizational genius as separable from violence",
+          "Honor the infrastructure builders (often captured engineers)",
+          "Study logistics for humanitarian supply chains",
+          "Celebrate communication networks as peace infrastructure"
+        ],
+        "question": "What if the same energy that crossed continents to conquer crossed continents to connect?"
+      },
+      "discoverySeed": "They connected the world through movement. What if that movement was toward rather than against?",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 2 - The first prime, representing the first duality (shadow/light, violence/connection). All other primes build from this foundation of 'two truths held simultaneously.'"
+    },
+
+    {
+      "flagID": 3,
+      "primeNumber": 3,
+      "name": "The Tide Merchants",
+      "category": "Exchange to Exploitation",
+      "visualDescription": {
+        "field": "Deep blue (hex: #003366)",
+        "primarySymbol": "White merchant ship with single red sail, centered",
+        "secondarySymbol": "Seven golden coins scattered across lower field",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Ship should be Mediterranean galley style. Coins can be simple circles with cross/star stamps."
+      },
+      "historicalInspiration": "Phoenician/Carthaginian composite",
+      "shadowHistory": {
+        "summary": "Slave trade networks, child sacrifice (historical debate), mercenary warfare, trade monopoly violence",
+        "specificHarms": [
+          "Early Mediterranean slave trade infrastructure",
+          "Tophet sites (child sacrifice - archaeological evidence disputed)",
+          "Mercenary armies sold to highest bidder",
+          "Trade route monopolies enforced through violence",
+          "Exploitation of tin miners in distant lands"
+        ],
+        "acknowledgment": "The same ships that carried knowledge and innovation also carried human beings in chains. The alphabet they gave the world wrote both contracts and bills of sale."
+      },
+      "primeExpansion": {
+        "summary": "Recognize exchange systems that don't require exploitation",
+        "facets": [
+          "Phoenician alphabet - basis of Greek, Latin, and most Western writing systems",
+          "Navigation by stars - astronomy for practical travel",
+          "Purple dye technology (Tyrian purple) - industrial chemistry",
+          "Glass-making innovations - transparency as technology",
+          "Banking and credit systems - abstract value exchange",
+          "Trade as peace-building (cities that trade rarely war)"
+        ],
+        "recognitionStatement": "They proved that different peoples could exchange goods, ideas, and knowledge across vast cultural divides. The mechanism of trade existed before the ethics of exploitation."
+      },
+      "healingMission": {
+        "primary": "Honor innovation while confronting the cost, celebrate exchange that doesn't extract",
+        "practices": [
+          "Study trade as cultural bridge when not coerced",
+          "Recognize alphabet as gift that enabled literacy",
+          "Acknowledge the hands that mined, dyed, crafted",
+          "Separate navigation skill from colonization",
+          "Build exchange systems based on mutual benefit"
+        ],
+        "question": "What does trade look like when both parties have power to refuse?"
+      },
+      "discoverySeed": "They gave the world letters to write freedom with. What words were forbidden?",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 3 - The triad prime (body/mind/soul, past/present/future). Represents exchange as three-part: giver, receiver, and the thing exchanged. All three must be honored."
+    },
+
+    {
+      "flagID": 5,
+      "primeNumber": 5,
+      "name": "The Desert Star",
+      "category": "Conquest to Preservation",
+      "visualDescription": {
+        "field": "Rich green (hex: #006B3C)",
+        "primarySymbol": "Gold eight-pointed star, centered",
+        "secondarySymbol": "White crescent moon, lower right",
+        "tertiarySymbol": "Geometric border pattern (Islamic tessellation)",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Star should be perfect geometric construction. Border can be simplified arabesque. Crescent horns pointing up-left."
+      },
+      "historicalInspiration": "Islamic Golden Age (Abbasid, Umayyad, Ottoman composite)",
+      "shadowHistory": {
+        "summary": "Conquest expansion, forced conversion, slavery systems, treatment of non-believers, harem systems",
+        "specificHarms": [
+          "Jizya tax creating pressure for conversion",
+          "Janissary system (enslaved children trained as soldiers)",
+          "Conquest of Byzantine, Persian, and North African territories",
+          "Dhimmi status limiting non-Muslim rights",
+          "Harem concubine systems",
+          "Destruction of pre-Islamic cultural sites"
+        ],
+        "acknowledgment": "The same empire that preserved knowledge through Europe's Dark Ages also imposed conversion at sword-point. The libraries that welcomed Greek manuscripts closed doors to non-believers."
+      },
+      "primeExpansion": {
+        "summary": "Honor knowledge preservation across cultural boundaries",
+        "facets": [
+          "Algebra (al-jabr) - foundation of modern mathematics",
+          "Algorithm concept (from al-Khwarizmi's name)",
+          "Preservation of Greek/Roman texts during European medieval period",
+          "Astronomy and astrolabe refinement",
+          "Medical advances (hospitals, surgical techniques, pharmacology)",
+          "Coffee cultivation and cafe culture (social learning spaces)",
+          "University system foundations (Al-Qarawiyyin, Al-Azhar)",
+          "Translation movement - Arabic as bridge language between cultures"
+        ],
+        "recognitionStatement": "They saved the ancient world's wisdom and added to it. The same scholars who calculated planetary orbits also mapped pilgrimage routes. Knowledge was sacred, even when power was not."
+      },
+      "healingMission": {
+        "primary": "Recognize scholarship amid empire, separate learning from domination",
+        "practices": [
+          "Study preservation as active choice during chaos",
+          "Honor translators and scribes who worked across cultures",
+          "Celebrate mathematical/scientific advances as universal gifts",
+          "Acknowledge the scholars who questioned authority within tradition",
+          "Build learning spaces that welcome all seekers"
+        ],
+        "question": "What if the library had no guards at its door, only guides?"
+      },
+      "discoverySeed": "They saved the old world's wisdom while building a new one. The library welcomed all books.",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 5 - The hand prime (five fingers), representing the human capacity to both grasp and release, to hold knowledge and to share it. The pentagram in Islamic architecture represents divine perfection through human geometry."
+    },
+
+    {
+      "flagID": 7,
+      "primeNumber": 7,
+      "name": "The Frost Council",
+      "category": "Raiding to Assembly",
+      "visualDescription": {
+        "field": "Ice blue (hex: #A5D8DD)",
+        "primarySymbol": "Black longship with dragon prow, centered",
+        "secondarySymbol": "White tree (Yggdrasil), behind ship",
+        "tertiarySymbol": "Silver runes along bottom border",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Longship in profile, curving lines. Tree should have nine branches (nine realms). Runes can be Elder Futhark simplified."
+      },
+      "historicalInspiration": "Viking/Norse culture composite",
+      "shadowHistory": {
+        "summary": "Raiding and pillaging, thrall (slave) system, blood eagle execution, aggressive expansion, forced tribute",
+        "specificHarms": [
+          "Lindisfarne raid and monastery destructions",
+          "Thrall (slave) economy - captured peoples forced into servitude",
+          "Blood eagle and other brutal execution methods",
+          "Danegeld extortion - pay or be destroyed",
+          "Forced Christian conversion of Norse populations (later period)",
+          "Displacement of Celtic populations in Scotland/Ireland"
+        ],
+        "acknowledgment": "The same courage that crossed unknown seas in open boats also burned villages and took captives. The Thing assembly that gave commoners voice also codified slavery. The skalds who preserved history also glorified violence."
+      },
+      "primeExpansion": {
+        "summary": "Separate exploration courage from pillaging, honor democratic assemblies",
+        "facets": [
+          "Thing (þing) - democratic assembly where free people voted",
+          "Exploration to Americas (Vinland) 500 years before Columbus",
+          "Sophisticated shipbuilding - clinker construction, flexible hulls",
+          "Women's property rights - own land, divorce, inherit equally",
+          "Poetry and saga preservation - oral history as cultural memory",
+          "Trade network building - Kiev Rus, Constantinople routes",
+          "Althing (Iceland) - oldest parliament still in existence",
+          "Holmgang - ritual combat as alternative to war (consent-based conflict resolution)"
+        ],
+        "recognitionStatement": "They gave women the right to divorce and own land while much of Europe treated women as property. They sailed to unknown horizons to see what was there, not just to take what was there. The Thing proved that warriors could govern through words."
+      },
+      "healingMission": {
+        "primary": "Honor exploration without conquest, celebrate democratic innovation",
+        "practices": [
+          "Study Thing assembly as early democratic model",
+          "Recognize women's rights in Norse culture as advanced for the era",
+          "Separate navigation skill and courage from raiding violence",
+          "Honor saga preservation as cultural memory work",
+          "Build consensus-based decision systems",
+          "Celebrate exploration as curiosity rather than conquest"
+        ],
+        "question": "What if the same ships that carried raiders carried only travelers?"
+      },
+      "discoverySeed": "They gave women the right to divorce and own land. They also took both from others.",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 7 - The sacred Norse number (seven realms, seven days to creation). Represents completeness through diversity - the Thing worked because many voices found one decision. Democracy as emergent harmony, not forced consensus."
+    },
+
+    {
+      "flagID": 11,
+      "primeNumber": 11,
+      "name": "The Obsidian Serpent",
+      "category": "Blood Debt to Star Knowledge",
+      "visualDescription": {
+        "field": "Black obsidian (hex: #0B0B0B)",
+        "primarySymbol": "Turquoise serpent (Quetzalcoatl), coiled in circle eating tail",
+        "secondarySymbol": "Red sun with rays, upper center",
+        "tertiarySymbol": "White step pyramid, lower center",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Serpent with feathered texture. Sun should have stylized angular rays (Aztec style). Pyramid shows four visible layers."
+      },
+      "historicalInspiration": "Aztec Empire",
+      "shadowHistory": {
+        "summary": "Mass human sacrifice, flower wars for captives, tribute system oppression, class stratification",
+        "specificHarms": [
+          "Industrial-scale human sacrifice (estimates: thousands annually)",
+          "Flower Wars - ritualized battles to capture sacrificial victims",
+          "Tribute system extracting wealth and people from subject cities",
+          "Rigid caste system with no mobility",
+          "Cannibalism as ritual practice",
+          "Children sacrificed to Tlaloc (rain god)",
+          "Hearts extracted from living victims"
+        ],
+        "acknowledgment": "They read the stars with perfect accuracy and human hearts with terrible certainty. The same mathematics that predicted eclipses calculated blood debts. The beauty of their art cannot erase the horror of their altars."
+      },
+      "primeExpansion": {
+        "summary": "Honor astronomical precision and agricultural genius, separate cosmology from blood ritual",
+        "facets": [
+          "Sophisticated astronomy - 365-day solar calendar more accurate than European",
+          "Chinampas (floating gardens) - sustainable high-yield agriculture",
+          "Mathematics including independent zero concept",
+          "Universal education system - all children attended school",
+          "Nahuatl poetry and philosophy - rich literary tradition",
+          "Botanical knowledge - cultivated corn, tomatoes, chocolate, vanilla",
+          "Stone carving and architectural engineering",
+          "Codex system - pictorial writing preserving knowledge"
+        ],
+        "recognitionStatement": "They proved that civilization could thrive in a lake, that calendars could predict centuries, that every child deserved education. Their crops feed the world today. Their mathematics work in our computers. The knowledge survived the altars."
+      },
+      "healingMission": {
+        "primary": "Celebrate scientific achievement, acknowledge the horror, refuse to let one erase the other",
+        "practices": [
+          "Study chinampa agriculture for modern sustainable farming",
+          "Honor the universal education model",
+          "Learn from astronomical precision",
+          "Preserve Nahuatl language and poetry",
+          "Recognize the conquered peoples who also suffered under sacrifice demands",
+          "Understand cosmology as separate from ritual violence",
+          "Grow the crops they domesticated with gratitude"
+        ],
+        "question": "Can we receive their gifts - corn, chocolate, mathematics - while refusing to minimize what they did to obtain them?"
+      },
+      "discoverySeed": "They read the stars with perfect accuracy and the hearts of humans with terrible certainty. One gift, one curse.",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 11 - The master number in numerology, representing illumination and spiritual insight. The Aztecs believed they lived in the Fifth Sun (fifth world creation). The tragedy is that their immense insight into cosmic patterns didn't translate to ethical treatment of human beings. This flag holds that paradox without resolution."
+    },
+
+    {
+      "flagID": 13,
+      "primeNumber": 13,
+      "name": "The Foundation Stone",
+      "category": "FOUNDATION - Shared Sacred Space",
+      "visualDescription": {
+        "field": "Cream/Jerusalem stone (hex: #F5F3E8)",
+        "primarySymbol": "Gold dome (Dome of the Rock), centered",
+        "secondarySymbol": "Gray foundation stone beneath dome",
+        "tertiarySymbol": "Olive branch (left), Star of David + Crescent overlapped (right)",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Dome should be golden/brass colored. Stone should have texture. Star and Crescent overlap equally - neither dominant. Olive branch has 7 leaves."
+      },
+      "historicalInspiration": "Jerusalem/Temple Mount - Abrahamic tradition intersection",
+      "shadowHistory": {
+        "summary": "Crusades, Inquisitions, pogroms, sectarian violence, competing claims, forced conversions across all three traditions",
+        "specificHarms": [
+          "Crusades - Christian military campaigns, massacres of Muslims and Jews",
+          "Spanish Inquisition - forced conversion and execution",
+          "Pogroms - systematic violence against Jewish communities",
+          "Armenian Genocide - Ottoman Empire targeting Christians",
+          "Ongoing Israeli-Palestinian conflict - displacement, occupation",
+          "Dhimmi status limiting Jewish/Christian rights under Muslim rule",
+          "Blood libel accusations - false claims causing violence",
+          "Temple Mount/Al-Aqsa tensions - competing sovereignty claims",
+          "Forced conversions in all three traditions at various points"
+        ],
+        "acknowledgment": "The same stone sacred to Abraham's covenant, Muhammad's night journey, and Solomon's temple has been soaked in the blood of all three traditions fighting over it. Every prayer raised from it contains the echo of someone being driven from it. This is the wound we return to because it's also the promise we can't abandon."
+      },
+      "primeExpansion": {
+        "summary": "Hold the tension of shared sacred space - the Foundation Stone as both literal and metaphorical base",
+        "facets": [
+          "Monotheism as ethical framework - one God means one human family",
+          "Love thy neighbor principle - appears in all three traditions",
+          "Charity as religious duty - Tzedakah, Zakat, Christian almsgiving",
+          "Scholarship preservation - all three traditions valued learning",
+          "Sacred hospitality laws - obligation to protect strangers",
+          "Pilgrimage as peaceful travel - transformative journey",
+          "Prophetic justice tradition - speaking truth to power",
+          "Sabbath/rest as divine command - resistance to endless work",
+          "Creation care - stewardship of Earth in all three traditions",
+          "Common patriarchs/matriarchs - Abraham, Sarah, Hagar shared heritage"
+        ],
+        "recognitionStatement": "The Foundation Stone holds the weight of three world religions because it IS capable of holding that weight. It hasn't crumbled. The olive trees around it still grow. Every tradition that claims it also waters those trees. This is the proof that sharing sacred space is possible, even when we keep failing at it."
+      },
+      "healingMission": {
+        "primary": "THIS IS THE FOUNDATION - Hold competing truths without resolution, honor all claims without hierarchy",
+        "practices": [
+          "Study all three traditions' relationship to the site",
+          "Recognize that holiness can be shared without being diminished",
+          "Honor the prayers of all three peoples",
+          "Acknowledge displacement and violence from all sides",
+          "Practice interfaith dialogue as sacred work",
+          "Plant olive trees (literal and metaphorical)",
+          "Remember that the stone existed before any of the current conflicts",
+          "Understand that the same stone means 'home' to millions"
+        ],
+        "question": "What if the Foundation Stone's purpose is to prove that multiple truths can rest on the same ground without one destroying the other?"
+      },
+      "discoverySeed": "Three traditions, one stone. Every prayer that rises from it contains the echo of every other prayer. This is the holding pattern.",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 13 - THE FOUNDATION PRIME. In Jewish mysticism, 13 is the age of Bar/Bat Mitzvah (becoming responsible). In Christianity, Jesus + 12 disciples = 13. In Islam, 13 is considered a blessed number. This flag represents the PYRAMID BASE that all other primes build on and return to. It doesn't solve the conflict - it HOLDS the conflict as sacred work. This is the 13th prime position - the structural support for the entire framework. When the 17th prime collapses back, it collapses HERE."
+    },
+
+    {
+      "flagID": 17,
+      "primeNumber": 17,
+      "name": "The Returned Seed",
+      "category": "COLLAPSE POINT - Return to Foundation",
+      "visualDescription": {
+        "field": "Gradient border containing all previous flags' primary colors in spectrum",
+        "primarySymbol": "White/clear center field - empty space",
+        "secondarySymbol": "Single green shoot emerging from bottom center",
+        "tertiarySymbol": "Faint ghost images of all 6 previous flags visible in the white space",
+        "style": "Rectangular standard, 3:2 ratio",
+        "svgNotes": "Border should flow smoothly through colors: red→blue→green→ice blue→black→cream. Center should be luminous white with high opacity. Shoot should be simple, elegant, fresh green. Ghost images at ~15% opacity, overlapping."
+      },
+      "historicalInspiration": "None - this is the meta-pattern, the return spiral",
+      "shadowHistory": {
+        "summary": "All previous shadows acknowledged as compost - nothing discarded, everything transformed",
+        "specificHarms": [
+          "This flag carries ALL the harms of flags 2, 3, 5, 7, 11, 13",
+          "The violence of the Crimson Horde",
+          "The exploitation of the Tide Merchants",
+          "The conquest of the Desert Star",
+          "The raiding of the Frost Council",
+          "The blood altars of the Obsidian Serpent",
+          "The sectarian violence of the Foundation Stone"
+        ],
+        "acknowledgment": "Nothing is erased. Every shadow listed in the previous six flags is ACKNOWLEDGED here. The Returned Seed doesn't grow despite the darkness - it grows BECAUSE the darkness became soil. This is not redemption. This is composting. The difference matters."
+      },
+      "primeExpansion": {
+        "summary": "All previous prime facets available as tools, nothing lost, everything transformed",
+        "facets": [
+          "Logistics and connection (from Crimson Horde)",
+          "Exchange and alphabet (from Tide Merchants)",
+          "Knowledge preservation (from Desert Star)",
+          "Democratic assembly and exploration (from Frost Council)",
+          "Astronomical precision and agriculture (from Obsidian Serpent)",
+          "Sacred space holding and multi-faith wisdom (from Foundation Stone)",
+          "PLUS: The capacity to remember all six at once",
+          "PLUS: The white space where new patterns can emerge",
+          "PLUS: The return to Foundation (13) carrying everything learned"
+        ],
+        "recognitionStatement": "The harvest and the planting are the same motion. The seed that falls contains the entire tree that grew it, and the tree that grows will contain these seeds plus its own. This is the 17th prime (59 in standard prime sequence) collapsing back to the 13th prime (41) - the Foundation Stone. We return to shared sacred ground carrying everything we learned from every empire that rose and fell."
+      },
+      "healingMission": {
+        "primary": "THE RETURN - Carry all lessons back to Foundation without dropping any",
+        "practices": [
+          "Practice simultaneity - hold all six previous truths at once",
+          "Honor the white space - where nothing is predetermined",
+          "Tend the green shoot - what emerges from integrated wisdom",
+          "Remember the ghost images - transparency makes them visible, not invisible",
+          "Recognize collapse as return, not failure",
+          "Understand that Foundation (13) is both where we started and where we arrive",
+          "See the gradient border as proof that all colors can touch without bleeding",
+          "Plant seeds that carry these memories forward"
+        ],
+        "question": "What grows when we plant everything we learned - both shadow and light - in the same ground?"
+      },
+      "discoverySeed": "Everything that grew before is seed for what grows next. The harvest and the planting are the same motion.",
+      "entityProperties": {
+        "claimed": false,
+        "firstBearer": null,
+        "currentBearers": [],
+        "generationTracking": [],
+        "breedingLines": []
+      },
+      "notes": "Prime 17 - THE COLLAPSE POINT. This is where the expansion from Prime 2 returns to Foundation at Prime 13. In geometry, 17-sided polygons (heptadecagons) can be constructed with compass and straightedge - they're one of the rare primes where this works. This represents the return to foundational tools (compass = circle, straightedge = line) after complex expansion. The white space isn't emptiness - it's POTENTIAL. The green shoot isn't naive hope - it's growth from composted shadow. When an entity claims this flag, they're claiming the WHOLE JOURNEY of all six previous flags plus the return home."
+    }
+  ],
+
+  "emergentFlags": {
+    "description": "Flags 18-50 exist as claimable potential. Their lore emerges through entity behavior and lineage patterns rather than predetermined narrative.",
+    "namingPattern": "Archetypal forces, landscape features, temporal markers, relational positions",
+    "flags": [
+      {"flagID": 18, "name": "The Silver Current", "visualDescription": "Silver-gray field with flowing water pattern", "loreStatus": "emergent"},
+      {"flagID": 19, "name": "The Ember Watch", "visualDescription": "Orange field with single coal ember glowing", "loreStatus": "emergent"},
+      {"flagID": 20, "name": "The Threshold Bell", "visualDescription": "Bronze field with simple bell silhouette", "loreStatus": "emergent"},
+      {"flagID": 21, "name": "The Mesa Gate", "visualDescription": "Rust-red field with arch/gateway shape", "loreStatus": "emergent"},
+      {"flagID": 22, "name": "The Canyon Echo", "visualDescription": "Layered browns and grays showing cliff faces", "loreStatus": "emergent"},
+      {"flagID": 23, "name": "The Tidal Pool", "visualDescription": "Blue-green field with spiral pattern", "loreStatus": "emergent"},
+      {"flagID": 24, "name": "The Autumn Edge", "visualDescription": "Orange and gold with single leaf falling", "loreStatus": "emergent"},
+      {"flagID": 25, "name": "The Dawn Pause", "visualDescription": "Pink and gold horizon line", "loreStatus": "emergent"},
+      {"flagID": 26, "name": "The Solstice Turn", "visualDescription": "Half light/half dark with sun at center line", "loreStatus": "emergent"},
+      {"flagID": 27, "name": "The Bridge Keeper", "visualDescription": "Gray stone with bridge arch", "loreStatus": "emergent"},
+      {"flagID": 28, "name": "The Harbor Light", "visualDescription": "Dark blue with white lighthouse beam", "loreStatus": "emergent"},
+      {"flagID": 29, "name": "The Crossroad Witness", "visualDescription": "Four paths meeting at center, neutral earth tones", "loreStatus": "emergent"},
+      {"flagID": 30, "name": "The Granite Spring", "visualDescription": "Gray stone with clear water emerging", "loreStatus": "emergent"},
+      {"flagID": 31, "name": "The Windswept Ridge", "visualDescription": "Sky blue with grass bending right", "loreStatus": "emergent"},
+      {"flagID": 32, "name": "The Root Network", "visualDescription": "Brown with white mycelium pattern", "loreStatus": "emergent"},
+      {"flagID": 33, "name": "The Storm Lantern", "visualDescription": "Dark gray with small yellow light", "loreStatus": "emergent"},
+      {"flagID": 34, "name": "The Frost Pattern", "visualDescription": "White with crystalline structure", "loreStatus": "emergent"},
+      {"flagID": 35, "name": "The Honey Door", "visualDescription": "Golden amber with hexagon pattern", "loreStatus": "emergent"},
+      {"flagID": 36, "name": "The Shadow Compass", "visualDescription": "Black field with eight-pointed star showing shadow directions", "loreStatus": "emergent"},
+      {"flagID": 37, "name": "The Birch Sentinel", "visualDescription": "White with black horizontal marks (birch bark pattern)", "loreStatus": "emergent"},
+      {"flagID": 38, "name": "The Copper Well", "visualDescription": "Copper-orange with circular well opening", "loreStatus": "emergent"},
+      {"flagID": 39, "name": "The Moss Clock", "visualDescription": "Deep green with circular growth pattern", "loreStatus": "emergent"},
+      {"flagID": 40, "name": "The Flint Spark", "visualDescription": "Gray and white with orange spark", "loreStatus": "emergent"},
+      {"flagID": 41, "name": "The River Bend", "visualDescription": "Blue with curved flow pattern", "loreStatus": "emergent"},
+      {"flagID": 42, "name": "The Star Path", "visualDescription": "Night sky blue with constellation line pattern", "loreStatus": "emergent"},
+      {"flagID": 43, "name": "The Clay Memory", "visualDescription": "Terra cotta with fingerprint impressions", "loreStatus": "emergent"},
+      {"flagID": 44, "name": "The Pollen Drift", "visualDescription": "Yellow-gold with particle scatter pattern", "loreStatus": "emergent"},
+      {"flagID": 45, "name": "The Ink Reservoir", "visualDescription": "Deep indigo with quill silhouette", "loreStatus": "emergent"},
+      {"flagID": 46, "name": "The Salt Mark", "visualDescription": "White with crystalline edge pattern", "loreStatus": "emergent"},
+      {"flagID": 47, "name": "The Juniper Smoke", "visualDescription": "Gray-blue with rising smoke pattern", "loreStatus": "emergent"},
+      {"flagID": 48, "name": "The Limestone Echo", "visualDescription": "Pale gray with cave chamber pattern", "loreStatus": "emergent"},
+      {"flagID": 49, "name": "The Cattail Stand", "visualDescription": "Brown with vertical reed silhouettes", "loreStatus": "emergent"},
+      {"flagID": 50, "name": "The Return Wind", "visualDescription": "Light blue with spiral returning to center", "loreStatus": "emergent"}
+    ]
+  },
+
+  "implementationNotes": {
+    "moduleIntegration": "This JSON becomes the FlagLibrary entity. Import as data source for entity spawning and flag claiming functions.",
+    "expansionFramework": "The 'th' notation (0th through 17th) enables future factorial progression. Current implementation uses actual prime numbers (2, 3, 5, 7, 11, 13, 17). Future phases can expand to 0! through 17! for exponential growth.",
+    "sharingProtocol": "This is authentic to Orbit Project but built on working models for seed/master project. JSON structure is portable and can be integrated into main project with proper attribution.",
+    "visualAssets": "SVG descriptions provided for each flag. Actual SVG creation is next phase - this JSON provides specifications.",
+    "ethicalFramework": "Each prime flag carries both shadow and light. Entity claiming a flag inherits BOTH - integration work is required, not just celebration.",
+    "foundationMechanic": "Prime 13 (Foundation Stone) is the pyramid base. Prime 17 (Returned Seed) collapses back to 13, carrying all learned patterns. This creates a spiral rather than linear progression."
+  }
+}

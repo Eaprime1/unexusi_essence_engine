@@ -1,0 +1,9 @@
+[2025-11-19 00:26:35] ============================================================
+[2025-11-19 00:26:36] Nano File Renamer - ONE HERTZ
+[2025-11-19 00:26:36] Source: docs/concepts
+[2025-11-19 00:26:36] Dry Run: True
+[2025-11-19 00:26:36] ============================================================
+[2025-11-19 00:26:36] Found 8 files to process
+[2025-11-19 00:26:36] [1] Skipping (no change): nano_concepts.md
+[2025-11-19 00:26:36] [2] Processing: Master_Thread_Opening_Messages.md
+[2025-11-19 00:26:36]   [DRY RUN] Would rename to: master_thread_opening_messages.md

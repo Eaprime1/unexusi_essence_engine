@@ -7,7 +7,13 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "original": "bash scripts/launch-original.sh",
+    "primal": "bash scripts/launch-primal.sh",
+    "experimental": "bash scripts/launch-experimental.sh",
     "build": "vite build",
+    "build:original": "vite build --config vite.config.port2000.js",
+    "build:primal": "vite build --config vite.config.port3000.js",
+    "build:experimental": "vite build --config vite.config.port4000.js",
     "serve": "vite preview"
   },
   "dependencies": {
