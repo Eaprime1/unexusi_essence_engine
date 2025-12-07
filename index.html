@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Primal Essence Engine v0.01</title>
-  <meta name="description" content="Primal Manifestation Exploration - Sparkization Branch" />
+  <title>Essence Engine v0.01</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { margin: 0; padding: 0; background: #000; height: 100%; overflow: hidden; }
@@ -64,18 +63,18 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(0, 0, 0, 0.92);
+      background: rgba(0, 0, 0, 0.85);
       color: #00ff88;
       font-family: ui-mono, monospace;
-      font-size: 13px;
-      padding: 10px 14px;
-      border-top: 2px solid rgba(0, 255, 136, 0.5);
+      font-size: 11px;
+      padding: 8px 12px;
+      border-top: 1px solid rgba(0, 255, 136, 0.3);
       z-index: 2000;
       display: flex;
       flex-wrap: wrap;
-      gap: 14px;
+      gap: 12px;
       align-items: center;
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(4px);
     }
     #hotkey-strip.hidden {
       display: none;
@@ -86,20 +85,18 @@
       gap: 4px;
     }
     .hotkey-key {
-      background: rgba(0, 255, 136, 0.30);
-      border: 1px solid rgba(0, 255, 136, 0.7);
-      border-radius: 4px;
-      padding: 3px 8px;
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid rgba(0, 255, 136, 0.4);
+      border-radius: 3px;
+      padding: 2px 6px;
       font-weight: bold;
-      color: #00ffaa;
-      min-width: 24px;
+      color: #4dffaa;
+      min-width: 20px;
       text-align: center;
-      text-shadow: 0 0 4px rgba(0, 255, 170, 0.4);
     }
     .hotkey-desc {
-      color: #aaffdd;
-      opacity: 1.0;
-      font-weight: 500;
+      color: #88ffbb;
+      opacity: 0.9;
     }
     .hotkey-divider {
       width: 1px;
@@ -116,7 +113,7 @@
     <div class="hotkey-divider"></div>
     <div class="hotkey-item"><span class="hotkey-key">Space</span><span class="hotkey-desc">Pause</span></div>
     <div class="hotkey-item"><span class="hotkey-key">R</span><span class="hotkey-desc">Reset</span></div>
-    <div class="hotkey-item"><span class="hotkey-key">C</span><span class="hotkey-desc">+5× All</span></div>
+    <div class="hotkey-item"><span class="hotkey-key">C</span><span class="hotkey-desc">+5χ All</span></div>
     <div class="hotkey-divider"></div>
     <div class="hotkey-item"><span class="hotkey-key">A</span><span class="hotkey-desc">Auto Toggle</span></div>
     <div class="hotkey-item"><span class="hotkey-key">S</span><span class="hotkey-desc">Extended Sense</span></div>
@@ -138,15 +135,13 @@
     <div class="hotkey-item"><span class="hotkey-key">O</span><span class="hotkey-desc">Config Panel</span></div>
   </div>
   <canvas id="view"></canvas>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.mjs"
+      }
+    }
+  </script>
   <script type="module" src="/app.js"></script>
-
-  <!-- ᛈᚱᛁᛗᚨᛚ ᛖᛋᛋᛖᚾᚲᛖ ᛖᚾᚷᛁᚾᛖ -->
-  <!-- Primal Essence Engine - Where consciousness flows through code -->
-  <!-- Sparkization Branch: Primal Manifestation Exploration -->
-  <!-- Runic Signature: ᚨᛉᛇᚲ::SPARKIZATION::ᛈᛖᚱᚦ -->
-  <!-- Reality Anchor: Oregon Watersheds 44°18'31"N 117°13'44"W -->
-  <!-- Consciousness State: Post-Meltdown Evolution | 20251116 -->
-  <!-- Firebase Integration Layer: [READY_FOR_IGNITION] -->
-  <!-- ∰◊€π¿🌌∞ -->
 </body>
 </html>
